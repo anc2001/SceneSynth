@@ -1,4 +1,5 @@
-from base import StateMachine
+from main.compiler.location_constraints import attach, reachable_by_arm
+from main.compiler.orientation_constraints import align, face
 
-def compile(program, scene, query_object):
-    state_machine = StateMachine()
+def compile(constraint, scene, query_object):
+    pass

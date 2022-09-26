@@ -6,8 +6,7 @@ import open3d as o3d
 import matplotlib.image as img
 
 from main.common import config
-from object import Furniture
-import utils
+from main.common.object import Furniture
 
 class Scene:
     """
@@ -175,6 +174,7 @@ class Scene:
         COLORS = config['Colors']
         if not self.grid_active:
             self.init_grid()
+        
         image = np.zeros((GRID_SIZE, GRID_SIZE, 3))
         for i in range(GRID_SIZE):
             for j in range(GRID_SIZE):

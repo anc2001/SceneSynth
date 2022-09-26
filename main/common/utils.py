@@ -1,6 +1,11 @@
 # General utility functions for common objects 
 import numpy as np
 
+def raise_exception(type):
+    if type == 'tree':
+        print("Tree is invalid")
+        raise Exception()
+
 def normalize(vector):
     return vector / (np.linalg.norm(vector) + 1e-8)
 

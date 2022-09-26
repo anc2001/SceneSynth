@@ -1,15 +1,8 @@
-# Represents a program to be executed by the compiler
-# Defines the syntax of the language and the semantics of the program
-# Clases Program, Constraint 
-# Program contains a room, query object, list of constraints (program lines) that describe all the possible placements of the object in the room
-# Constraint is a tuple of (constraint_type, constraint_args)
-
-# Need conversion from program structure tree -> program sequence token list, and the converse 
-
 import numpy as np
-from scene import Scene
-from object import Furniture
+from main.common.scene import Scene
+from main.common.object import Furniture
 from main.compiler import compile
+from main.common.utils import raise_exception
 
 class Node():
     # self.type -> or, and, leaf
@@ -18,17 +11,11 @@ class Node():
     # self.mask -> mask at the current node
     # self.constraint -> only applicable if leaf node, 
     def __init__(self, type, constraint = None) -> None:
-        if type == 'or' or type == 'and' or type == 'leaf':
-            self.type = type
-        else:
-            print(f"invalid node type:{type}")
-            exit()
-        
-        if type == 'leaf' and constraint:
-            self.constraint = constraint
-        else:
-            print("Attempted to create leaf node without constraint")
-            exit()
+        self.type = type
+        self.constraint = constraint
+
+    def is_leaf(self):
+        return self.type == 'leaf'
 
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D array representing the binary mask of all possible object placements in the room
@@ -42,18 +29,66 @@ class Node():
         return self.mask
 
 class ProgramTree():
-    # self.scene -> scene 
-    # self.object -> query object to place in scene 
     # self.root -> root node of tree 
-    def __init__(self, constraint = None) -> None:
-        self.root = Node('leaf')
+    
+    def from_constraint(self, constraint) -> None:
+        self.root = Node('leaf', constraint)
 
     def from_tokens(self, tokens : dict) -> None:
-        structure_sequence = tokens['structure']
-        constraint_sequence = tokens['constraints']
+        structure = np.array(tokens['structure'])
+        constraints = np.array(tokens['constraints'])
+        index_tracker = np.arange(len(structure))
+        # (structure sequence idx -> constraint sequence idx)
+        constraint_reference_key = {
+            item : i for i, item in enumerate(index_tracker[structure == 'c'])
+        }
+        
+        def parse(tree_structure, index_tracker):
+            if len(tree_structure) == 0:
+                raise_exception('tree')
+            
+            if tree_structure[0] == 'c':
+                constraint = constraints[
+                    constraint_reference_key[
+                        index_tracker[0]
+                    ]
+                ]
+                return Node('leaf', constraint), tree_structure[1:], index_tracker[1:]
+            elif tree_structure[0] == 'or' or tree_structure[0] == 'and':
+                node = Node(tree_structure[0])
+                left_node, right_tree_structure, right_index_tracker = parse(
+                    tree_structure[1:], index_tracker[1:]
+                )
+                node.left = left_node
+                right_node, remaining_tree_structure, remaining_index_tracker = parse(
+                    right_tree_structure, right_index_tracker
+                )
+                node.right = right_node
+                return node, remaining_tree_structure, remaining_index_tracker
+            else:
+                raise_exception('tree')
+
+        root_node, remaining_structure, _ = parse(structure, index_tracker)
+        if len(remaining_structure) > 0:
+            raise_exception('tree')
+        
+        self.root = root_node
 
     def to_tokens(self) -> dict:
-        tokens = dict()
+        def flatten(node):
+            if node.is_leaf():
+                return np.array(['c']), np.array([node.constraint])
+            else:
+                left_structure, left_constraints = flatten(node.left)
+                right_structure, right_constraints = flatten(node.right)
+                tree_structure = np.concatenate([[node.type], left_structure, right_structure])
+                constraints = np.concatenate([left_constraints, right_constraints], axis = 0)
+                return tree_structure, constraints
+        structure_sequence, constraint_sequence = flatten(self.root)
+        return {
+            'structure' : structure_sequence,
+            'constraints' : constraint_sequence
+        }
 
     # Convention is the self goes on the left, other on the right
     def combine(self, type, other_tree):
@@ -69,5 +104,17 @@ class ProgramTree():
         return mask_3d
 
     def print_program(self) -> None:
-        pass
-
+        def print_program_helper(node, count):
+            if node.is_leaf():
+                mask_name = f"mask_{count}"
+                print(f"{mask_name} = {node.constraint}")
+                return mask_name, count + 1
+            else:
+                left_name, new_count = print_program_helper(node.left, count)
+                right_name, newer_count = print_program_helper(node.right, new_count)
+                mask_name = f"mask_{newer_count}"
+                print(f"{mask_name} = {left_name} {node.type} {right_name}")
+                return mask_name, newer_count + 1
+        
+        final_name, _ = print_program_helper(self.root, 0)
+        print(f"return {final_name}")

@@ -35,5 +35,5 @@ def get_config() -> dict:
         'directions' :  np.array([[255,0,0], [0,255,0], [0,0,255], [255,255,0]]) / 255
     }
     toReturn['Colors'] = COLORS
-    toReturn['Language']['bin_width'] = (2 * np.pi) / toReturn['Language']['num_angles']
+    toReturn['Language']['bin_width'] = (2 * np.pi) / float(toReturn['Language']['num_angles'])
     return toReturn
