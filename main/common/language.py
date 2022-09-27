@@ -5,11 +5,13 @@ from main.compiler import compile
 from main.common.utils import raise_exception
 
 class Node():
-    # self.type -> or, and, leaf
-    # self.left -> left node
-    # self.right -> right node
-    # self.mask -> mask at the current node
-    # self.constraint -> only applicable if leaf node, 
+    """
+    self.type -> or, and, leaf
+    self.left -> left node
+    self.right -> right node
+    self.mask -> mask at the current node
+    self.constraint -> only applicable if leaf node
+    """
     def __init__(self, type, constraint = None) -> None:
         self.type = type
         self.constraint = constraint
@@ -29,8 +31,9 @@ class Node():
         return self.mask
 
 class ProgramTree():
-    # self.root -> root node of tree 
-    
+    """
+    self.root -> root node of tree 
+    """
     def from_constraint(self, constraint) -> None:
         self.root = Node('leaf', constraint)
 
@@ -43,6 +46,7 @@ class ProgramTree():
             item : i for i, item in enumerate(index_tracker[structure == 'c'])
         }
         
+        # See below for code explanation 
         def parse(tree_structure, index_tracker):
             if len(tree_structure) == 0:
                 raise_exception('tree')
@@ -90,16 +94,21 @@ class ProgramTree():
             'constraints' : constraint_sequence
         }
 
-    # Convention is the self goes on the left, other on the right
     def combine(self, type, other_tree):
-        new_root = Node(type)
-        new_root.left = self.root
-        new_root.right = other_tree
-        self.root = new_root
+        # Convention is the self goes on the left, other on the right
+        if type == 'or' or type == 'and':
+            new_root = Node(type)
+            new_root.left = self.root
+            new_root.right = other_tree
+            self.root = new_root
+        else:
+            print("Invalid combination node type")
+            return None
 
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D mask that can be used for evaluation 
         mask_4d = self.root.evaluate(scene, query_object)
+        # Collapse 4D mask into 3D mask and ensure placement validity inside the room 
         mask_3d = None
         return mask_3d
 
@@ -118,3 +127,50 @@ class ProgramTree():
         
         final_name, _ = print_program_helper(self.root, 0)
         print(f"return {final_name}")
+
+"""
+tokens to tree explanation 
+
+Example: 
+structure_sequence = np.array(['and', 'or', 'c', 'c', 'c'])
+constraints = [[0, 0, 1, 0], [0, 0, 1, 2], [3, 0, 1, 4]]
+
+constraint_reference_key (structure sequence idx -> constraint sequence idx) 
+= {2 : 0, 3 : 1, 4 : 2}
+
+'and'  <-
+
+structure: 'or', 'c', 'c', 'c'
+index_tracker = [1, 2, 3, 4]
+
+    'and'
+    /
+  'or' <-
+structure: 'c', 'c', 'c'
+index_tracker = [2, 3, 4]
+
+Evaluate the 'c' token using the constraint_reference_key (2 -> 0), constraint at index 0
+
+    'and'
+    /
+  'or'
+  /
+0 <-
+structure: 'c', 'c'
+index_tracker = [3, 4]
+
+return to the or node and generate tree based on the remaining sequence starting on right 
+    'and'
+    /
+ 'or'  
+ /  \
+0    1 <-
+structure: 'c'
+index_tracker = [4]
+
+    'and'
+    /   \ 
+ 'or'    2 
+ /  \
+0    1 <-
+"""

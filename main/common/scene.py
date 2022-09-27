@@ -16,12 +16,6 @@ class Scene:
     self.faces : np.ndarray - (M, 3) array of faces of the floor mesh
     self.walls : np.ndarray - (P, 2) array of walls of the floor mesh
     self.wall_directions : np.ndarray - (P, ) array of wall directions of the floor mesh
-
-    self.grid_active : bool - Whether the grid is active or not
-    self.grid : np.ndarray - (GRID_SIZE, GRID_SIZE, ) array of the grid
-        At every point is essentially a struct with the following fields:
-            0: category - int [-1 outside, 0 empty, 1 object]
-            1: canonical direction - int
             
     """
     def __init__(self) -> None:
@@ -69,9 +63,6 @@ class Scene:
         new_scene = Scene()
         new_scene.vertices = np.array(self.vertices)
         new_scene.faces = np.array(self.faces)
-        if self.grid_active:
-            new_scene.grid_active = True
-            new_scene.orthographic_view = np.array(self.orthographic_view)
         if not empty:
             new_scene.objects = np.array(self.objects)
         return new_scene
@@ -97,7 +88,7 @@ class Scene:
             new_scene.remove_object(index, inplace=True)
             return new_scene
 
-    def backtrace(self) -> list:
+    def permute(self) -> list:
         # Given the current objects, return a list of (Scene, object) tuples
         pass
     
@@ -216,3 +207,5 @@ class Scene:
         
         image = np.rot90(image, axes=(0,1))
         img.imsave(filepath, image)
+
+# Only print room should 
