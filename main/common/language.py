@@ -1,7 +1,7 @@
 import numpy as np
 from main.common.scene import Scene
 from main.common.object import Furniture
-from main.compiler import compile
+from main.compiler import solve_constraint
 from main.common.utils import raise_exception
 
 class Node():
@@ -22,7 +22,7 @@ class Node():
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D array representing the binary mask of all possible object placements in the room
         if self.type == 'leaf':
-            compile(self.constraint, scene, query_object)
+            solve_constraint(self.constraint, scene, query_object)
         else:
             mask1 = self.left.evaluate(scene, query_object)
             mask2 = self.right.evaluate(scene, query_object)
@@ -168,6 +168,7 @@ return to the or node and generate tree based on the remaining sequence starting
 structure: 'c'
 index_tracker = [4]
 
+Return to root 'and' node with this sequence 
     'and'
     /   \ 
  'or'    2 
