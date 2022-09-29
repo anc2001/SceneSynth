@@ -1,14 +1,15 @@
+from main.network import device
+from main.program_extraction.data_processing import read_program_data
+
 import torch
 from torch.utils.data import Dataset
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-import numpy as np
-from main.common import config, device
 
-class ConstraintDataset(Dataset):
+import numpy as np
+
+class ProgramDataset(Dataset):
     def __init__(self):
         # Load data
-        object_sequences, constraint_sequences = data_processing.preprocess_data()
+        object_sequences, constraint_sequences = read_program_data()
         self.x = object_sequences
         self.y = constraint_sequences
 
@@ -101,38 +102,3 @@ class ConstraintDataset(Dataset):
             torch.tensor(target).float().to(device),
             torch.tensor(target_padding_mask).bool().to(device),
         )
-
-def get_dataloaders():
-    # Return the dataloader
-    dataset = ConstraintDataset()
-
-    train_size = int(0.8 * len(dataset))
-    validation_size = int(0.1 * len(dataset))
-    test_size = len(dataset) - train_size - validation_size
-    train_dataset, test_dataset, validation_dataset = torch.utils.data.random_split(
-        dataset, 
-        [train_size, test_size, validation_size]
-    )
-
-    train_dataloader = DataLoader(
-        train_dataset, 
-        batch_size = config['Network']['batch_size'], 
-        shuffle = True, 
-        collate_fn = dataset.collate_fn
-    )
-
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size = config['Network']['batch_size'],
-        shuffle = True,
-        collate_fn = dataset.collate_fn
-    )
-
-    validation_dataloader = DataLoader(
-        validation_dataset,
-        batch_size = config['Network']['batch_size'],
-        shuffle = True,
-        collate_fn = dataset.collate_fn
-    )
-
-    return train_dataloader, test_dataloader, validation_dataloader

@@ -12,7 +12,7 @@ def get_object(*args, **kwargs):
         scene = args[1]
         walls = args[2]
 
-        info = {'query_object' : False}
+        info = {}
         info['color'] = colors['wall']
         info['id'] = 0
         info['holds_humans'] = False
@@ -21,42 +21,41 @@ def get_object(*args, **kwargs):
         return Wall(info, scene, walls)
     elif type == 'furniture':
         object_info = args[1]
-        is_query_object = args[2]
 
         model_info = object_info['model_info']
-        info = {'query_object' : is_query_object}
+        info = {}
 
         valid = False
         if model_info['super_category'] == 'bed':
             info['color'] = colors['bed']
             info['id'] = 1
             info['holds_humans'] = True
-            info['semantic_fronts'] = [1]
+            info['semantic_fronts'] = {1}
             valid = True
         elif model_info['super_category'] == 'chair':
             info['color'] = colors['chair']
             info['id'] = 5
             info['holds_humans'] = True
-            info['semantic_fronts'] = [1]
+            info['semantic_fronts'] = {1}
             valid = True
         elif model_info['super_category'] == 'cabinet/shelf/desk':
             if model_info['category'] == 'wardrobe':
                 info['color'] = colors['wardrobe']
                 info['id'] = 2
                 info['holds_humans'] = False
-                info['semantic_fronts'] = [1]
+                info['semantic_fronts'] = {1}
                 valid = True
             elif model_info['category'] == 'nightstand':
                 info['color'] = colors['nightstand']
                 info['id'] = 3
                 info['holds_humans'] = False
-                info['semantic_fronts'] = [1]
+                info['semantic_fronts'] = {1}
                 valid = True
         elif model_info['super_category'] == 'table':
             info['color'] = colors['desk']
             info['id'] = 4
             info['holds_humans'] = False
-            info['semantic_fronts'] = [0, 1, 2, 3]
+            info['semantic_fronts'] = {0, 1, 2, 3}
             valid = True
         
         if valid:
@@ -69,9 +68,6 @@ def get_object(*args, **kwargs):
         return None  
 
 class Furniture(SceneObject):
-    """
-    self.query_object states whether the object is a query object or not 
-    """
     def __init__(self, info) -> None:
         super().__init__(info)
         self.bbox = BBox(info['object_info']['size'])
@@ -143,18 +139,13 @@ class Furniture(SceneObject):
             triangle = [a, b, c]
             utils.write_triangle_to_image(triangle, scene, image, triangle_color)
 
-    # Only called when the object is a query object 
     def distance(self, reference):
         """
         Calculates the minimum distance between the this and the given object 
         Distance value of 0 means that the two objects intersect or overlap 
 
         returns distance, direction
-        """
-        if not self.query_object:
-            print("Called distance on non query object")
-            exit()
-        
+        """        
         min_distance = (np.finfo(np.float64).max, None, None) # List to include points that tie 
         line_seg_indices = None
         for object_line_seg_idx, object_line_seg in enumerate(self.line_segs):
@@ -164,11 +155,7 @@ class Furniture(SceneObject):
                     min_distance = min_distance_tuple
                     line_seg_indices = (object_line_seg_idx, reference_line_seg_idx)
         
-        distance = min_distance[0]
-        if distance == 0:
-            return distance, None
-        else:
-            return distance, line_seg_indices[1]
+        return min_distance[0], line_seg_indices[1]
 
     def world_semantic_fronts(self):
         """

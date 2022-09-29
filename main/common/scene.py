@@ -102,7 +102,7 @@ class Scene():
             new_scene.remove_object(index, inplace=True)
             return new_scene
 
-    def permute(self) -> list:
+    def permute(self):
         # Given the current objects, return a list of (Scene, object) tuples
         pass
     

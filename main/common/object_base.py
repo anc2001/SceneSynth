@@ -13,7 +13,6 @@ class SceneObject():
         self.id = info['id']
         self.color = info['color']
         self.holds_humans = info['holds_humans']
-        self.query_object = info['query_object']
         self.semantic_fronts = info['semantic_fronts']
 
     def write_to_array(self, scene, image):
