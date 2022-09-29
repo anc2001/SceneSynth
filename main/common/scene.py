@@ -1,12 +1,21 @@
-# Ability to return return variations of current self
-#   Given the objects, return a list of (self, object) tuples
+from main.common import utils
+from main.common.object import Furniture, get_object
+from main.config import data_filepath, grid_size, colors
 
 import numpy as np
 import open3d as o3d
 import matplotlib.image as img
+import pickle
+import os 
 
-from main.common import config, utils
-from main.common.object import Furniture, get_object
+def get_scene_list():
+    scene_list = np.array([])
+    with open(os.path.join(data_filepath, 'kai_parse.pkl'), 'rb') as f:
+        room_info_list = pickle.load(f)
+        for room_info in room_info_list:
+            scene = Scene(room_info)
+            scene_list = np.append(scene_list, scene)
+    return scene_list
 
 class Scene():
     """
@@ -23,9 +32,11 @@ class Scene():
             room_info['floor_plan']['vertices'], 
             room_info['floor_plan']['faces']
         )
+
         for object_info in room_info['objects']:
             object = get_object('furniture', object_info, False)
-            self.objects = np.append(self.objects, object)
+            if object:
+                self.objects = np.append(self.objects, object)
     
     def init_room_geometry(self, vertices : np.ndarray, faces : np.ndarray) -> None:
         """
@@ -51,13 +62,13 @@ class Scene():
         min_bound = np.amin(self.vertices, axis = 0)
         max_bound = np.amax(self.vertices, axis = 0)
         center = np.mean([min_bound, max_bound], axis = 0)
-        
+
         total_floor_extent = max_bound - min_bound
         largest_dim_idx = np.argmax(total_floor_extent)
         largest_dim = total_floor_extent[largest_dim_idx] + 0.2
 
         # Calculate cell size and corner position so that all sides of the self are padded 
-        self.cell_size = largest_dim / config['Language']['grid_size']
+        self.cell_size = largest_dim / grid_size
         self.corner_pos = center - [largest_dim / 2, 0, largest_dim / 2]   
 
     def copy(self, empty=False):
@@ -99,14 +110,13 @@ class Scene():
         """
         Prints the orthographic view 
         """
-        grid_size = config['Language']['grid_size']
         image = np.zeros((grid_size, grid_size, 3))
-        image[:, :, :] = config['Colors']['outside']
+        image[:, :, :] = colors['outside']
 
         # Mask all points inside 
         for face in self.faces:
             triangle = self.vertices[face]
-            utils.write_triangle_to_image(triangle, self, image, config['Colors']['inside'])
+            utils.write_triangle_to_image(triangle, self, image, colors['inside'])
         
         for object in self.objects:
             object.write_to_image(self, image)

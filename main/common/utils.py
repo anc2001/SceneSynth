@@ -1,4 +1,5 @@
-from main.common import config
+from main.config import grid_size, bin_width, num_angles
+
 import numpy as np
 
 def raise_exception(type):
@@ -37,8 +38,6 @@ def get_rot_matrix(theta):
     return rotation_m
 
 def get_grid_bounds(min_bound, max_bound, scene):
-    grid_size = config['Language']['grid_size']
-
     grid_min_bound = (min_bound - scene.corner_pos) / scene.cell_size
     grid_min_bound = np.minimum(
         np.maximum(grid_min_bound, [0, 0, 0]), 
@@ -57,16 +56,14 @@ def write_triangle_to_image(triangle, scene, image, color):
     min_bound = np.amin(triangle, axis = 0)
     max_bound = np.amax(triangle, axis = 0)
     grid_min_bound, grid_max_bound = get_grid_bounds(min_bound, max_bound, scene)
-    for i in range(grid_min_bound[0], grid_max_bound[0]):
-        for j in range(grid_min_bound[2], grid_max_bound[2]):
+    for i in range(grid_min_bound[0], grid_max_bound[0] + 1):
+        for j in range(grid_min_bound[2], grid_max_bound[2] + 1):
             cell_center = scene.corner_pos + np.array([i + 0.5, 0, j + 0.5]) * scene.cell_size
             if point_triangle_test(cell_center, triangle):
                 image[i, j, :] = color
 
 def angle_to_index(angle):
     angle = 2 * np.pi + angle if angle < 0 else angle
-    bin_width = config['Language']['bin_width']
-    num_angles = config['Language']['num_angles']
     angle_idx = np.around(angle / bin_width).astype(int) % num_angles
     return angle_idx
 

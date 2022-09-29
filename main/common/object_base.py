@@ -75,7 +75,7 @@ class BBox():
             [max_bound[0], 0, min_bound[2]]
         ])
         self.faces = np.array([[0, 3, 1], [0, 2, 3]])
-        self.center = np.array([0,0,0])
+        self.center = np.array([0.0,0.0,0.0])
 
         # Angular bins 
         v0 = utils.normalize(self.vertices[0])
@@ -100,7 +100,7 @@ class BBox():
         """
         amount : np.ndarray of shape (3,)
         """
-        amount[0] = 0
+        amount[1] = 0
         self.vertices += amount
         self.center += amount
 
@@ -129,9 +129,9 @@ class BBox():
         
 class LineSeg():
     def __init__(self, point1, point2, normal) -> None:
-        self.p1 = point1
-        self.p2 = point2
-        self.normal = normal
+        self.p1 = np.array(point1)
+        self.p2 = np.array(point2)
+        self.normal = np.array(normal)
 
     def rotate(self, theta : float):
         """
@@ -140,14 +140,18 @@ class LineSeg():
         rot_matrix = utils.get_rot_matrix(theta)
         self.p1 = np.matmul(self.p1, rot_matrix)
         self.p2 = np.matmul(self.p2, rot_matrix)
+        self.normal = np.matmul(self.normal, rot_matrix)
         
     def translate(self, amount : np.ndarray):
         """
         amount : np.ndarray of shape (3,)
         """
-        amount[0] = 0
+        amount[1] = 0
         self.p1 += amount
         self.p2 += amount
+    
+    def centroid(self):
+        return np.mean([self.p1, self.p2], axis = 0)
     
     def normal_to_point(self, point : np.ndarray):
         """
@@ -159,7 +163,7 @@ class LineSeg():
         """
         ab = self.p1 - self.p2
         ab_mag = np.linalg.norm(ab)
-        ca = point - self.point1
+        ca = point - self.p1
         projection = (np.dot(ca, ab) / (ab_mag ** 2)) * ab
         normal = utils.normalize(ca - projection)
         return normal

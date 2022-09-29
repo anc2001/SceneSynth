@@ -1,6 +1,6 @@
-from main.common import config
 from main.common import utils
 from main.common.object_base import SceneObject, BBox, LineSeg
+from main.config import colors
 
 import numpy as np
 
@@ -13,7 +13,7 @@ def get_object(*args, **kwargs):
         walls = args[2]
 
         info = {'query_object' : False}
-        info['color'] = config['Colors']['wall']
+        info['color'] = colors['wall']
         info['id'] = 0
         info['holds_humans'] = False
         info['semantic_fronts'] = [0, 1, 2, 3]
@@ -25,35 +25,45 @@ def get_object(*args, **kwargs):
 
         model_info = object_info['model_info']
         info = {'query_object' : is_query_object}
+
+        valid = False
         if model_info['super_category'] == 'bed':
-            info['color'] = config['Colors']['bed']
+            info['color'] = colors['bed']
             info['id'] = 1
             info['holds_humans'] = True
             info['semantic_fronts'] = [1]
+            valid = True
         elif model_info['super_category'] == 'chair':
-            info['color'] = config['Colors']['chair']
+            info['color'] = colors['chair']
             info['id'] = 5
             info['holds_humans'] = True
             info['semantic_fronts'] = [1]
+            valid = True
         elif model_info['super_category'] == 'cabinet/shelf/desk':
             if model_info['category'] == 'wardrobe':
-                info['color'] = config['Colors']['wardrobe']
+                info['color'] = colors['wardrobe']
                 info['id'] = 2
                 info['holds_humans'] = False
                 info['semantic_fronts'] = [1]
+                valid = True
             elif model_info['category'] == 'nightstand':
-                info['color'] = config['Colors']['nightstand']
+                info['color'] = colors['nightstand']
                 info['id'] = 3
                 info['holds_humans'] = False
                 info['semantic_fronts'] = [1]
+                valid = True
         elif model_info['super_category'] == 'table':
-            info['color'] = config['Colors']['desk']
+            info['color'] = colors['desk']
             info['id'] = 4
             info['holds_humans'] = False
             info['semantic_fronts'] = [0, 1, 2, 3]
+            valid = True
         
-        info['object_info'] = object_info
-        return Furniture(info)
+        if valid:
+            info['object_info'] = object_info
+            return Furniture(info)
+        else:
+            return None
     else:
         print("Invalid type")
         return None  
@@ -85,8 +95,8 @@ class Furniture(SceneObject):
         for i in range(len(line_seg_indices)):
             indices = line_seg_indices[i]
             normal = line_seg_normals[i]
-            point1 = self.vertices[indices[0]]
-            point2 = self.vertices[indices[1]]
+            point1 = self.bbox.vertices[indices[0]]
+            point2 = self.bbox.vertices[indices[1]]
             line_seg = LineSeg(point1, point2, normal)
             self.line_segs.append(line_seg)
 
@@ -108,26 +118,24 @@ class Furniture(SceneObject):
         self.bbox.translate(amount)
         for line_seg in self.line_segs:
             line_seg.translate(amount) 
+    
+    def vectorize():
+        pass
 
     def write_to_image(self, scene, image):
-        """
-        Masks the current object in the room  
-        """
         # Write bounding box to image 
         for face in self.bbox.faces:
             triangle = self.bbox.vertices[face]
             utils.write_triangle_to_image(triangle, scene, image, self.color)
 
         # Write triangle directions to image 
-        base_length = self.cell_size * 8
+        base_length = scene.cell_size * 8
         height = (np.sqrt(3) * base_length) / 2 # Equilateral triangle 
-        for direction, segment_indices in enumerate(object.line_segs):
-            segment = object.vertices[segment_indices]
-            triangle_color = config['colors']['directions'][direction]
-            segment_centroid = np.mean(segment, axis = 0)
-            segment_normal = object.line_seg_normals[direction]
-            segment_vector = segment[1] - segment[0]
-            segment_vector = segment_vector / (np.linalg.norm(segment_vector) + 1e-8)
+        for direction, segment in enumerate(self.line_segs):
+            triangle_color = colors['directions'][direction]
+            segment_centroid = segment.centroid()
+            segment_normal = np.array(segment.normal)
+            segment_vector = utils.normalize(segment.p2 - segment.p1)
 
             a = segment_centroid + (segment_vector * base_length / 2)
             b = segment_centroid - (segment_vector * base_length / 2)
@@ -147,27 +155,20 @@ class Furniture(SceneObject):
             print("Called distance on non query object")
             exit()
         
-        min_distance = [(np.finfo(np.float64).max, None, None)] # List to include points that tie 
-        for object_line_seg in self.line_segs:
-            for reference_line_seg in reference.line_segs:
+        min_distance = (np.finfo(np.float64).max, None, None) # List to include points that tie 
+        line_seg_indices = None
+        for object_line_seg_idx, object_line_seg in enumerate(self.line_segs):
+            for reference_line_seg_idx, reference_line_seg in enumerate(reference.line_segs):
                 min_distance_tuple = object_line_seg.distance(reference_line_seg)
-                if min_distance[0][0] == min_distance_tuple[0]:
-                    min_distance.append(min_distance_tuple)
-                elif min_distance[0][0] > min_distance_tuple[0]:
-                    min_distance = [min_distance_tuple]
+                if min_distance[0] > min_distance_tuple[0]:
+                    min_distance = min_distance_tuple
+                    line_seg_indices = (object_line_seg_idx, reference_line_seg_idx)
         
-        # In case of two intersections 
-        direction_vector = np.zeros(3)
-        distance = min_distance[0][0]
-        for point_combo in min_distance:
-            vector = point_combo[1] - point_combo[2] # Point on object - Point on reference
-            if distance == 0:
-                vector = point_combo[1] - reference.center
-            direction_vector += vector
-
-        direction_vector = utils.normalize(direction_vector)
-        local_direction = reference.bbox.point_to_side(reference.center + direction_vector)
-        return distance, local_direction
+        distance = min_distance[0]
+        if distance == 0:
+            return distance, None
+        else:
+            return distance, line_seg_indices[1]
 
     def world_semantic_fronts(self):
         """
@@ -209,13 +210,19 @@ class Wall(SceneObject):
                         if not point == wall[0] and not point == wall[1]:
                             otherPoint = point
                     
-                    two_points = self.vertices[wall]
+                    two_points = scene.vertices[wall]
                     line_seg = LineSeg(two_points[0], two_points[1], None)
                     point_to = scene.vertices[otherPoint]
                     normal = line_seg.normal_to_point(point_to)
                     line_seg.normal = normal
                     self.line_segs.append(line_seg)
 
+    def vectorize():
+        pass
+
+    def write_to_image(self, scene, image):
+        pass
+    
     def world_semantic_fronts(self):
         """
         returns the semantic fronts of the object in world space
