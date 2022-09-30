@@ -9,9 +9,9 @@ import numpy as np
 class ProgramDataset(Dataset):
     def __init__(self):
         # Load data
-        object_sequences, constraint_sequences = read_program_data()
-        self.x = object_sequences
-        self.y = constraint_sequences
+        objects, programs = read_program_data()
+        self.x = objects
+        self.y = programs
 
     def __len__(self):
         # Return the length of the dataset

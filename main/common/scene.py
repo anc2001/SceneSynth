@@ -1,4 +1,4 @@
-from main.common import utils
+from main.common.utils import write_triangle_to_image, powerset
 from main.common.object import Furniture, get_object
 from main.config import data_filepath, grid_size, colors
 
@@ -78,9 +78,9 @@ class Scene():
         new_scene.cell_size = self.cell_size
         new_scene.corner_pos = self.corner_pos
         if empty:
-            new_scene.objects = self.objects[:1]
+            new_scene.objects = np.array(self.objects[:1])
         else:
-            new_scene.objects = self.objects
+            new_scene.objects = np.array(self.objects)
         return new_scene
     
     def add_object(self, obj : Furniture, inplace=True):
@@ -103,8 +103,23 @@ class Scene():
             return new_scene
 
     def permute(self):
-        # Given the current objects, return a list of (Scene, object) tuples
-        pass
+        # Given the current objects, return a list of (scene, object) tuples
+        scene_object_pairs = []
+        empty_scene = self.copy(empty=True) # includes wall
+        rest_objects = self.objects[:1]
+        rest_objects_indices = set(range(len(rest_objects)))
+        powerset = powerset(rest_objects_indices)
+        for obj_idx_set in powerset:
+            if not len(obj_idx_set) == len(powerset):
+                objects_in_room = rest_objects[list(obj_idx_set)]
+                possible_query_object_indices = rest_objects_indices.difference({obj_idx_set})
+                for query_object_idx in possible_query_object_indices:
+                    query_object = rest_objects[query_object_idx]
+                    new_scene = empty_scene.copy()
+                    new_scene.objects = np.append(new_scene.objects, objects_in_room)
+                    scene_object_pairs.append((new_scene, query_object))
+        
+        return scene_object_pairs
     
     def print(self, filepath):
         """
@@ -116,7 +131,7 @@ class Scene():
         # Mask all points inside 
         for face in self.faces:
             triangle = self.vertices[face]
-            utils.write_triangle_to_image(triangle, self, image, colors['inside'])
+            write_triangle_to_image(triangle, self, image, colors['inside'])
         
         for object in self.objects:
             object.write_to_image(self, image)

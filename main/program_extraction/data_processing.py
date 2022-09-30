@@ -80,12 +80,11 @@ def generate_most_restrictive_program(room, query_object):
 
 def extract_programs(scene_list):
     objects = []
+    programs = []
     for scene in scene_list:
-        for subscene in scene.permute():
-            pass
-        # permute the scene 
-        # 
-        pass
+        for subscene, query_object in scene.permute():
+            program = generate_most_restrictive_program(subscene, query_object)
+            # Convert scene to object list and program to structures + constraints 
 
 def write_program_data(objects_list, programs_list):
     pass
