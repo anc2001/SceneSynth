@@ -1,6 +1,7 @@
 from main.common.scene import get_scene_list
+from main.program_extraction import extract_programs
 
 import numpy as np
 
 scene_list = get_scene_list()
-scene_list[0].print('/Users/adrianchang/CS/research/SceneSynth/data/test.png')
+extract_programs(scene_list)

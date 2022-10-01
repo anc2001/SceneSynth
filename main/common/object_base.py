@@ -47,6 +47,10 @@ class SceneObject():
         """
         print("Not Implemented Yet!")
         raise Exception()
+    
+    def vectorize():
+        print("Not Implemented Yet!")
+        raise Exception()
 
 class BBox():
     """

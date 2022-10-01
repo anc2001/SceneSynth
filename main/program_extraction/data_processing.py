@@ -84,7 +84,17 @@ def extract_programs(scene_list):
     for scene in scene_list:
         for subscene, query_object in scene.permute():
             program = generate_most_restrictive_program(subscene, query_object)
-            # Convert scene to object list and program to structures + constraints 
+            # Convert scene to object list and program to structures + constraints
+            program_tokens = program.to_tokens()
+            subscene_vector = np.append(
+                subscene.vectorize(), 
+                query_object.vectorize(), 
+                axis = 0
+            )
+            objects.append(subscene_vector)
+            programs.append(program_tokens)
+    
+    write_program_data(objects, programs)
 
 def write_program_data(objects_list, programs_list):
     pass

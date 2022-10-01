@@ -13,7 +13,7 @@ def get_scene_list():
     with open(os.path.join(data_filepath, 'kai_parse.pkl'), 'rb') as f:
         room_info_list = pickle.load(f)
         for room_info in room_info_list:
-            scene = Scene(room_info)
+            scene = Scene(room_info = room_info)
             scene_list = np.append(scene_list, scene)
     return scene_list
 
@@ -27,16 +27,17 @@ class Scene():
     self.cell_size : float - the discretization of the grid 
     self.corner_pos : np.ndarray - (3,) the top left corner of the grid 
     """
-    def __init__(self, room_info : dict) -> None:
-        self.init_room_geometry(
-            room_info['floor_plan']['vertices'], 
-            room_info['floor_plan']['faces']
-        )
+    def __init__(self, room_info : dict = None) -> None:
+        if room_info:
+            self.init_room_geometry(
+                room_info['floor_plan']['vertices'], 
+                room_info['floor_plan']['faces']
+            )
 
-        for object_info in room_info['objects']:
-            object = get_object('furniture', object_info, False)
-            if object:
-                self.objects = np.append(self.objects, object)
+            for object_info in room_info['objects']:
+                object = get_object('furniture', object_info, False)
+                if object:
+                    self.objects = np.append(self.objects, object)
     
     def init_room_geometry(self, vertices : np.ndarray, faces : np.ndarray) -> None:
         """
@@ -106,20 +107,25 @@ class Scene():
         # Given the current objects, return a list of (scene, object) tuples
         scene_object_pairs = []
         empty_scene = self.copy(empty=True) # includes wall
-        rest_objects = self.objects[:1]
+        rest_objects = self.objects[1:]
         rest_objects_indices = set(range(len(rest_objects)))
-        powerset = powerset(rest_objects_indices)
-        for obj_idx_set in powerset:
-            if not len(obj_idx_set) == len(powerset):
-                objects_in_room = rest_objects[list(obj_idx_set)]
-                possible_query_object_indices = rest_objects_indices.difference({obj_idx_set})
-                for query_object_idx in possible_query_object_indices:
-                    query_object = rest_objects[query_object_idx]
-                    new_scene = empty_scene.copy()
-                    new_scene.objects = np.append(new_scene.objects, objects_in_room)
-                    scene_object_pairs.append((new_scene, query_object))
+        possibilities = powerset(rest_objects_indices)
+        for obj_idx_set in possibilities[:-1]: # disinclude the last set of all indices 
+            objects_in_room = rest_objects[list(obj_idx_set)]
+            possible_query_object_indices = rest_objects_indices.difference({obj_idx_set})
+            for query_object_idx in possible_query_object_indices:
+                query_object = rest_objects[query_object_idx]
+                new_scene = empty_scene.copy()
+                new_scene.objects = np.append(new_scene.objects, objects_in_room)
+                scene_object_pairs.append((new_scene, query_object))
         
         return scene_object_pairs
+
+    def vectorize(self):
+        object_list = np.array([])
+        for object in self.objects:
+            object_list = np.append(object.vectorize(), object_list, axis = 0)
+        return object_list
     
     def print(self, filepath):
         """
