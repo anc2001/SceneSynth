@@ -4,7 +4,6 @@ from main.config import data_filepath, grid_size, colors
 
 import numpy as np
 import open3d as o3d
-import matplotlib.image as img
 import pickle
 import os 
 
@@ -109,10 +108,10 @@ class Scene():
         empty_scene = self.copy(empty=True) # includes wall
         rest_objects = self.objects[1:]
         rest_objects_indices = set(range(len(rest_objects)))
-        possibilities = powerset(rest_objects_indices)
-        for obj_idx_set in possibilities[:-1]: # disinclude the last set of all indices 
-            objects_in_room = rest_objects[list(obj_idx_set)]
-            possible_query_object_indices = rest_objects_indices.difference({obj_idx_set})
+        possibilities = list(powerset(rest_objects_indices))
+        for obj_idx_tuple in possibilities[:-1]: # disinclude the last set of all indices 
+            objects_in_room = rest_objects[list(obj_idx_tuple)]
+            possible_query_object_indices = rest_objects_indices.difference(set(obj_idx_tuple))
             for query_object_idx in possible_query_object_indices:
                 query_object = rest_objects[query_object_idx]
                 new_scene = empty_scene.copy()
@@ -127,11 +126,10 @@ class Scene():
             object_list = np.append(object.vectorize(), object_list, axis = 0)
         return object_list
     
-    def print(self, filepath):
+    def print(self, image):
         """
         Prints the orthographic view 
         """
-        image = np.zeros((grid_size, grid_size, 3))
         image[:, :, :] = colors['outside']
 
         # Mask all points inside 
@@ -143,4 +141,3 @@ class Scene():
             object.write_to_image(self, image)
         
         image = np.rot90(image, axes=(0,1))
-        img.imsave(filepath, image)

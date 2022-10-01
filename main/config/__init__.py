@@ -40,3 +40,10 @@ max_allowed_sideways_reach = 0.6
 num_angles = 4
 grid_size = 256
 bin_width = (2 * np.pi) / num_angles
+
+# Language stuff 
+structure_vocab = ['c', 'or', 'and', '<sos>', '<eos>', '<pad>']
+constraint_types = ['attach', 'reachable_by_arm', 'align', 'face']
+constraint_types_map = {type : idx  for idx, type in enumerate(constraint_types)}
+direction_types = ['right', 'up', 'left', 'down', '<pad>']
+direction_types_map = {type : idx  for idx, type in enumerate(direction_types)}

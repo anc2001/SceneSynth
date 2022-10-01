@@ -5,12 +5,6 @@ from main.common.utils import raise_exception
 
 import numpy as np
 
-structure_vocab = ['c', 'or', 'and', 'sos', 'eos', '<pad>']
-constraint_types = ['attach', 'reachable_by_arm', 'align', 'face']
-constraint_types_map = {type : idx  for idx, type in enumerate(constraint_types)}
-direction_types = ['right', 'up', 'left', 'down', '<pad>']
-direction_types_map = {type : idx  for idx, type in enumerate(direction_types)}
-
 class Node():
     """
     self.type -> or, and, leaf
@@ -27,7 +21,7 @@ class Node():
         if self.is_leaf():
             return 1
         else:
-            return len(self.left) + len(self.right)
+            return 1 + len(self.left) + len(self.right)
 
     def is_leaf(self):
         return self.type == 'leaf'
@@ -49,14 +43,14 @@ class ProgramTree():
     """
     def __init__(self) -> None:
         self.root = np.array([])
-        self.num_constraints = 0
+        self.program_length = 0
 
     def __len__(self):
-        return self.num_constraints
+        return self.program_length
     
     def from_constraint(self, constraint) -> None:
         self.root = Node('leaf', constraint)
-        self.num_constraints = 1
+        self.program_length = 1
 
     def from_tokens(self, tokens : dict) -> None:
         structure = np.array(tokens['structure'])
@@ -98,7 +92,7 @@ class ProgramTree():
             raise_exception('tree')
         
         self.root = root_node
-        self.num_constraints = len(self.root)
+        self.program_length = len(self.root)
 
     def to_tokens(self) -> dict:
         def flatten(node):
@@ -121,9 +115,9 @@ class ProgramTree():
         if type == 'or' or type == 'and':
             new_root = Node(type)
             new_root.left = self.root
-            new_root.right = other_tree
+            new_root.right = other_tree.root
             self.root = new_root
-            self.num_constraints += len(other_tree)
+            self.program_length += len(other_tree)
         else:
             print("Invalid combination node type")
             return None

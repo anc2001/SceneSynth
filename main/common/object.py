@@ -1,6 +1,6 @@
 from main.common import utils
 from main.common.object_base import SceneObject, BBox, LineSeg
-from main.config import colors
+from main.config import colors, direction_types_map
 
 import numpy as np
 
@@ -71,6 +71,8 @@ class Furniture(SceneObject):
     def __init__(self, info) -> None:
         super().__init__(info)
         self.bbox = BBox(info['object_info']['size'])
+        self.center = self.bbox.center
+        self.extent = self.bbox.extent
         
         # Line Segs 
         line_seg_indices = [
@@ -87,14 +89,15 @@ class Furniture(SceneObject):
             [0, 0, -1] # Down 
         ]
 
-        self.line_segs = []
+        line_segs = []
         for i in range(len(line_seg_indices)):
             indices = line_seg_indices[i]
             normal = line_seg_normals[i]
             point1 = self.bbox.vertices[indices[0]]
             point2 = self.bbox.vertices[indices[1]]
             line_seg = LineSeg(point1, point2, normal)
-            self.line_segs.append(line_seg)
+            line_segs.append(line_seg)
+        self.line_segs = np.array(line_segs)
 
         self.rotate(- info['object_info']['rotation'])
         self.translate(info['object_info']['translation'])
@@ -115,7 +118,7 @@ class Furniture(SceneObject):
         for line_seg in self.line_segs:
             line_seg.translate(amount) 
     
-    def vectorize():
+    def vectorize(self):
         pass
 
     def write_to_image(self, scene, image):
@@ -139,34 +142,43 @@ class Furniture(SceneObject):
             triangle = [a, b, c]
             utils.write_triangle_to_image(triangle, scene, image, triangle_color)
 
-    def distance(self, reference):
+    def distance(self, reference : SceneObject):
         """
         Calculates the minimum distance between the this and the given object 
         Distance value of 0 means that the two objects intersect or overlap 
 
         returns distance, direction
         """        
-        min_distance = (np.finfo(np.float64).max, None, None) # List to include points that tie 
-        line_seg_indices = None
-        for object_line_seg_idx, object_line_seg in enumerate(self.line_segs):
-            for reference_line_seg_idx, reference_line_seg in enumerate(reference.line_segs):
+        min_distance = np.finfo(np.float64).max 
+        direction_vector = np.zeros(3)
+        for object_line_seg in self.line_segs:
+            for reference_line_seg in reference.line_segs:
                 min_distance_tuple = object_line_seg.distance(reference_line_seg)
-                if min_distance[0] > min_distance_tuple[0]:
-                    min_distance = min_distance_tuple
-                    line_seg_indices = (object_line_seg_idx, reference_line_seg_idx)
+                if min_distance_tuple[0] < min_distance:
+                    min_distance = min_distance_tuple[0]
+                    if min_distance == 0:
+                        direction_vector = min_distance_tuple[1] - reference.center
+                    else:
+                        direction_vector = min_distance_tuple[1] - min_distance_tuple[2]
+                elif min_distance == min_distance_tuple[0]:
+                    if min_distance == 0:
+                        direction_vector += min_distance_tuple[1] - reference.center
+                    else:
+                        direction_vector += min_distance_tuple[1] - min_distance_tuple[2]       
         
-        return min_distance[0], line_seg_indices[1]
+        side = reference.point_to_side(reference.center + direction_vector)
+        return min_distance, side
 
     def world_semantic_fronts(self):
         """
         returns the semantic fronts of the object in world space
         """
-        line_segs = self.line_segs[self.semantic_fronts]
+        line_segs = self.line_segs[list(self.semantic_fronts)]
         angle_indices = []
         for line_seg in line_segs:
-            angle_idx = utils.vector_angle_index(line_seg.normal, np.array([1,0,0]))
+            angle_idx = utils.vector_angle_index(np.array([1,0,0]), line_seg.normal)
             angle_indices.append(angle_idx)
-        return angle_indices
+        return set(angle_indices)
      
     def line_segs_in_direction(self, direction, world_space = True):
         """
@@ -177,12 +189,26 @@ class Furniture(SceneObject):
         if world_space:
             line_segs = []
             for line_seg in self.line_segs:
-                angle_idx = utils.vector_angle_index(line_seg.normal, np.array([1,0,0]))
+                angle_idx = utils.vector_angle_index(np.array([1,0,0]), line_seg.normal)
                 if angle_idx == direction:
                     line_segs.append(line_seg)
             return line_segs
         else:
             return self.line_segs[direction]
+    
+    def point_inside(self, point : np.ndarray):
+        """
+        point : np.ndarray of shape (3,)
+        """
+        self.bbox.point_inside(point)
+    
+    def point_to_side(self, point : np.ndarray):
+        """
+        point : np.ndarray of shape (3,)
+
+        returns local index of corresponding side 
+        """
+        self.bbox.point_to_side(point)
 
 class Wall(SceneObject):
     def __init__(self, info, scene, walls) -> None:
@@ -203,8 +229,13 @@ class Wall(SceneObject):
                     normal = line_seg.normal_to_point(point_to)
                     line_seg.normal = normal
                     self.line_segs.append(line_seg)
+        
+        self.vertices = scene.vertices
+        self.faces = scene.faces
+        self.center = np.mean(self.vertices, axis = 0)
+        self.extent = np.amax(self.vertices, axis = 0) - np.amin(self.vertices, axis = 0)
 
-    def vectorize():
+    def vectorize(self):
         pass
 
     def write_to_image(self, scene, image):
@@ -214,7 +245,7 @@ class Wall(SceneObject):
         """
         returns the semantic fronts of the object in world space
         """
-        return self.semantic_fronts
+        return set(self.semantic_fronts)
      
     def line_segs_in_direction(self, direction, world_space = True):
         """
@@ -225,7 +256,24 @@ class Wall(SceneObject):
         # There is no difference between world_space and local space for wall, because the local coordinate frame is the world space! 
         line_segs = []
         for line_seg in self.line_segs:
-            angle_idx = utils.vector_angle_index(line_seg.normal, np.array([1,0,0]))
+            angle_idx = utils.vector_angle_index(np.array([1,0,0]), line_seg.normal)
             if angle_idx == direction:
                 line_segs.append(line_seg)
         return line_segs
+    
+    def point_inside(self, point : np.ndarray):
+        """
+        point : np.ndarray of shape (3,)
+        """
+        for face in self.faces:
+            if utils.point_triangle_test(point, self.vertices[face]):
+                return True
+        return False
+    
+    def point_to_side(self, point : np.ndarray):
+        """
+        point : np.ndarray of shape (3,)
+
+        returns local index of corresponding side 
+        """
+        return direction_types_map['<pad>']

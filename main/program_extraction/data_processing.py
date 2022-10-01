@@ -1,17 +1,17 @@
-from main.common.language import ProgramTree, constraint_types_map, direction_types_map
-from main.config import max_allowed_sideways_reach
+from main.common.language import ProgramTree
+from main.config import max_allowed_sideways_reach, \
+    direction_types_map, constraint_types_map
 
 import numpy as np
 
 def generate_most_restrictive_program(room, query_object):
     query_object_idx = len(room.objects)
-    max_allowed_attach_distance = 0.1 * np.linalg.norm(query_object.bbox.size)
+    max_allowed_attach_distance = 0.1 * np.linalg.norm(query_object.bbox.extent)
     query_semantic_fronts = query_object.world_semantic_fronts()
     distance_bins = [0, max_allowed_attach_distance, max_allowed_sideways_reach]
     front_facing = len(query_semantic_fronts) == 1
     
     program = ProgramTree()
-
     for reference_object_idx, object in enumerate(room.objects):
         subprogram = ProgramTree()
 
@@ -37,8 +37,8 @@ def generate_most_restrictive_program(room, query_object):
             subprogram.from_constraint(constraint) 
         
         # Constrict possible orientations 
-        object_semantic_fronts = object.semantic_fronts()
-        overlap = query_semantic_fronts.intersect(object_semantic_fronts)
+        object_semantic_fronts = object.world_semantic_fronts()
+        overlap = query_semantic_fronts.intersection(object_semantic_fronts)
         if len(overlap) and len(subprogram): # Algin, object points in the same direction 
             constraint = [
                 constraint_types_map['align'],
@@ -47,7 +47,9 @@ def generate_most_restrictive_program(room, query_object):
                 direction_types_map['<pad>']
             ]
             
-            subprogram.combine('and', ProgramTree().from_constraint(constraint))
+            other_tree = ProgramTree()
+            other_tree.from_constraint(constraint)
+            subprogram.combine('and', other_tree)
         else: # face, not possible for query object to both face and be aligned with object 
             if front_facing:
                 front_facing_direction = query_semantic_fronts[0]

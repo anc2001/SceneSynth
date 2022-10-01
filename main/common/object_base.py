@@ -20,7 +20,6 @@ class SceneObject():
         Masks the current object in the room  
         """
         print("Not Implemented Yet!")
-        raise Exception()
     
     def distance(self, object):
         """
@@ -30,14 +29,12 @@ class SceneObject():
         returns distance, side 
         """
         print("Not Implemented Yet!")
-        raise Exception()
 
     def world_semantic_fronts(self):
         """
         returns the semantic fronts of the object in world space 
         """
         print("Not Implemented Yet!")
-        raise Exception()
      
     def line_segs_in_direction(self, direction, world_space = True):
         """
@@ -46,11 +43,23 @@ class SceneObject():
             or otherwise relative to the local coordinate from of the object 
         """
         print("Not Implemented Yet!")
-        raise Exception()
     
     def vectorize():
         print("Not Implemented Yet!")
-        raise Exception()
+
+    def point_inside(self, point : np.ndarray):
+        """
+        point : np.ndarray of shape (3,)
+        """
+        print("Not Implemented Yet!")
+
+    def point_to_side(self, point : np.ndarray):
+        """
+        point : np.ndarray of shape (3,)
+
+        returns local index of corresponding side 
+        """
+        print("Not Implemented Yet!")
 
 class BBox():
     """
@@ -198,15 +207,15 @@ class LineSeg():
         p3 = line_seg.p1
         p4 = line_seg.p2
         delta = (p4[2] - p3[2]) * (p2[0] - p1[0]) - (p4[0] - p3[0]) * (p2[2] - p1[2])
-        if delta == 0: return (False, None)
+        if delta == 0: return np.array([])
         u_a = ((p4[0] - p3[0]) * (p1[2] - p3[2]) - (p4[2] - p3[2]) * (p1[0] - p3[0])) / delta
         u_b = ((p2[0] - p1[0]) * (p1[2] - p3[2]) - (p2[2] - p1[2]) * (p1[0] - p3[0])) / delta
         intersection = (0 <= u_a <= 1) and (0 <= u_b <= 1)
         if intersection:
             point = p1 + u_a * (p2 - p1)
-            return (True, point)
+            return point
         else:
-            return (False, None)
+            return np.array([])
 
     def distance(self, line_seg):
         """
@@ -220,11 +229,9 @@ class LineSeg():
 
         Given points are 3D points with y = 0
         """
-        intersection_query = self.intersect(self, line_seg)[0]
-        if intersection_query[0]: 
-            point1 = intersection_query[1]
-            point1 = np.array([point1[0], 0, point1[1]])
-            return (0, point1, point1)
+        point = self.intersect(line_seg)
+        if len(point):
+            return (0, point, point)
 
         distances = []
         # given_first arguments -> want the point on current line_seg first in order of arguments 
