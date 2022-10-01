@@ -117,7 +117,7 @@ class ProgramTree():
             new_root.left = self.root
             new_root.right = other_tree.root
             self.root = new_root
-            self.program_length += len(other_tree)
+            self.program_length = len(new_root)
         else:
             print("Invalid combination node type")
             return None

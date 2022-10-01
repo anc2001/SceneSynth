@@ -15,7 +15,7 @@ def get_object(*args, **kwargs):
         info = {}
         info['color'] = colors['wall']
         info['id'] = 0
-        info['holds_humans'] = False
+        info['holds_humans'] = 0
         info['semantic_fronts'] = [0, 1, 2, 3]
 
         return Wall(info, scene, walls)
@@ -102,7 +102,7 @@ class Furniture(SceneObject):
         self.rotate(- info['object_info']['rotation'])
         self.translate(info['object_info']['translation'])
 
-    def rotate(self, theta : float):
+    def rotate(self, theta):
         """
         theta : float of rotation given in radians 
         """
@@ -118,8 +118,20 @@ class Furniture(SceneObject):
         for line_seg in self.line_segs:
             line_seg.translate(amount) 
     
-    def vectorize(self):
-        pass
+    def vectorize(self, wall_object):
+        """
+        (category, holds_humans, size, position, rotation) - size and position in 2D
+        """
+        center = self.center - wall_object.center # center around floor 
+        return np.array([[
+            self.id, 
+            self.holds_humans, 
+            self.extent[0], 
+            self.extent[2], 
+            center[0], 
+            center[2], 
+            self.bbox.rot
+        ]])
 
     def write_to_image(self, scene, image):
         # Write bounding box to image 
@@ -166,6 +178,7 @@ class Furniture(SceneObject):
                     else:
                         direction_vector += min_distance_tuple[1] - min_distance_tuple[2]       
         
+        direction_vector = utils.normalize(direction_vector)
         side = reference.point_to_side(reference.center + direction_vector)
         return min_distance, side
 
@@ -200,7 +213,7 @@ class Furniture(SceneObject):
         """
         point : np.ndarray of shape (3,)
         """
-        self.bbox.point_inside(point)
+        return self.bbox.point_inside(point)
     
     def point_to_side(self, point : np.ndarray):
         """
@@ -208,7 +221,7 @@ class Furniture(SceneObject):
 
         returns local index of corresponding side 
         """
-        self.bbox.point_to_side(point)
+        return self.bbox.point_to_side(point)
 
 class Wall(SceneObject):
     def __init__(self, info, scene, walls) -> None:
@@ -236,7 +249,10 @@ class Wall(SceneObject):
         self.extent = np.amax(self.vertices, axis = 0) - np.amin(self.vertices, axis = 0)
 
     def vectorize(self):
-        pass
+        """
+        (category, holds_humans, size, position, rotation) - size and position in 2D
+        """
+        return np.array([[self.id, False, self.extent[0], self.extent[2], 0, 0, 0]])
 
     def write_to_image(self, scene, image):
         pass

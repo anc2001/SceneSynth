@@ -45,6 +45,9 @@ class SceneObject():
         print("Not Implemented Yet!")
     
     def vectorize():
+        """
+        (category, holds_humans, size, position, rotation) - size and position in 2D
+        """
         print("Not Implemented Yet!")
 
     def point_inside(self, point : np.ndarray):
@@ -100,13 +103,21 @@ class BBox():
         angle_3 = angle_2 + np.arccos(np.dot(v0, v2))
         self.bins = [0, angle_1, angle_2, angle_3]
         self.bottom_right = utils.normalize(self.vertices[3])
+        self.rot = 0
     
-    def rotate(self, theta : float):
+    def rotate(self, theta):
         """
         theta : float of rotation given in radians 
         """
+        self.rot += theta[0]
+        if self.rot > 2 * np.pi:
+            self.rot = 2 * np.pi - self.rot
+        elif self.rot < 0:
+            self.rot += 2 * np.pi
+        
         rot_matrix = utils.get_rot_matrix(theta)
         self.vertices = np.matmul(self.vertices, rot_matrix)
+        self.bottom_right = np.matmul(self.bottom_right, rot_matrix)
 
     def translate(self, amount : np.ndarray):
         """
@@ -145,7 +156,7 @@ class LineSeg():
         self.p2 = np.array(point2)
         self.normal = np.array(normal)
 
-    def rotate(self, theta : float):
+    def rotate(self, theta):
         """
         theta : float of rotation given in radians 
         """

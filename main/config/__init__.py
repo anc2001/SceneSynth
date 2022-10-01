@@ -37,6 +37,7 @@ colors = {
         'directions' :  np.array([[255,0,0], [0,255,0], [0,0,255], [255,255,0]]) / 255
     }
 max_allowed_sideways_reach = 0.6
+max_attach_distance = 0.2
 num_angles = 4
 grid_size = 256
 bin_width = (2 * np.pi) / num_angles

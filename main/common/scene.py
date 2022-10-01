@@ -123,7 +123,15 @@ class Scene():
     def vectorize(self):
         object_list = np.array([])
         for object in self.objects:
-            object_list = np.append(object.vectorize(), object_list, axis = 0)
+            if len(object_list):
+                object_list = np.append(
+                    object.vectorize(self.objects[0]), 
+                    object_list, 
+                    axis = 0
+                )
+            else:
+                object_list = object.vectorize()
+                
         return object_list
     
     def print(self, image):
