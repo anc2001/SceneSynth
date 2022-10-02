@@ -76,11 +76,15 @@ class Scene():
         new_scene.vertices = np.array(self.vertices)
         new_scene.faces = np.array(self.faces)
         new_scene.cell_size = self.cell_size
-        new_scene.corner_pos = self.corner_pos
+        new_scene.corner_pos = np.array(self.corner_pos)
         if empty:
-            new_scene.objects = np.array(self.objects[:1])
+            wall_object = self.objects[0].copy()
+            new_scene.objects = np.array([wall_object])
         else:
-            new_scene.objects = np.array(self.objects)
+            objects = []
+            for object in self.objects:
+                objects.append(object.copy())
+            new_scene.objects = np.array(objects)
         return new_scene
     
     def add_object(self, obj : Furniture, inplace=True):
@@ -113,7 +117,7 @@ class Scene():
             objects_in_room = rest_objects[list(obj_idx_tuple)]
             possible_query_object_indices = rest_objects_indices.difference(set(obj_idx_tuple))
             for query_object_idx in possible_query_object_indices:
-                query_object = rest_objects[query_object_idx]
+                query_object = rest_objects[query_object_idx].copy()
                 new_scene = empty_scene.copy()
                 new_scene.objects = np.append(new_scene.objects, objects_in_room)
                 scene_object_pairs.append((new_scene, query_object))
