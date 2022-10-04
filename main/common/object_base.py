@@ -14,6 +14,7 @@ class SceneObject():
         self.color = info['color']
         self.holds_humans = info['holds_humans']
         self.semantic_fronts = info['semantic_fronts']
+        self.front_facing = len(self.semantic_fronts) == 1
 
     def write_to_array(self, scene, image):
         """

@@ -12,6 +12,9 @@ def raise_exception(type):
     if type == 'tree':
         print("Tree is invalid")
         raise Exception()
+    if type == 'front_facing':
+        print("Called Face on non front facing object")
+        raise Exception()
 
 def normalize(vector):
     return vector / (np.linalg.norm(vector) + 1e-9)
@@ -67,6 +70,16 @@ def write_triangle_to_image(triangle, scene, image, color):
             cell_center = scene.corner_pos + np.array([i + 0.5, 0, j + 0.5]) * scene.cell_size
             if point_triangle_test(cell_center, triangle):
                 image[i, j, :] = color
+
+def write_triangle_to_mask(triangle, scene, mask):
+    min_bound = np.amin(triangle, axis = 0)
+    max_bound = np.amax(triangle, axis = 0)
+    grid_min_bound, grid_max_bound = get_grid_bounds(min_bound, max_bound, scene)
+    for i in range(grid_min_bound[0], grid_max_bound[0] + 1):
+        for j in range(grid_min_bound[2], grid_max_bound[2] + 1):
+            cell_center = scene.corner_pos + np.array([i + 0.5, 0, j + 0.5]) * scene.cell_size
+            if point_triangle_test(cell_center, triangle):
+                mask[i, j] = 1  
 
 def angle_to_index(angle):
     angle = 2 * np.pi + angle if angle < 0 else angle
