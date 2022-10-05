@@ -153,6 +153,11 @@ class Furniture(SceneObject):
             c = segment_centroid + segment_normal * height
             triangle = [a, b, c]
             utils.write_triangle_to_image(triangle, scene, image, triangle_color)
+    
+    def write_to_mask(self, scene, mask):
+        for face in self.bbox.faces:
+            triangle = self.bbox.vertices[face]
+            utils.write_triangle_to_mask(triangle, scene, mask)
 
     def distance(self, reference : SceneObject):
         """
@@ -258,6 +263,9 @@ class Wall(SceneObject):
         return np.array([[self.id, False, self.extent[0], self.extent[2], 0, 0, 0]])
 
     def write_to_image(self, scene, image):
+        pass
+
+    def write_to_mask(self, scene, mask):
         pass
     
     def world_semantic_fronts(self):

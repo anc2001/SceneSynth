@@ -1,4 +1,6 @@
-from main.common.utils import write_triangle_to_image, powerset
+from main.common.utils import powerset,\
+    write_triangle_to_image, \
+    write_triangle_to_mask
 from main.common.object import Furniture, get_object
 from main.config import data_filepath, grid_size, colors
 
@@ -151,3 +153,17 @@ class Scene():
         
         image = np.rot90(image, axes=(0,1))
         return image
+    
+    def convert_to_mask(self):
+        # 1 invalid space
+        # 0 empty (valid) space
+        mask = np.zeros((grid_size, grid_size))
+        for face in self.faces:
+            triangle = self.vertices[face]
+            write_triangle_to_mask(triangle, self, mask)
+        
+        for object in self.objects:
+            object.write_to_mask(self, mask)
+        
+        mask = ~mask.astype(int)
+        return mask

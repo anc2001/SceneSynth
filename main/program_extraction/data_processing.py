@@ -114,4 +114,4 @@ def read_program_data():
 def test(scene, query_object):
     # Temp to debug program 
     program = generate_most_restrictive_program(scene, query_object)
-    program.evaluate(scene, query_object)
+    program.evaluate(scene, query_object, debug=True)

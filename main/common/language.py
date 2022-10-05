@@ -32,7 +32,7 @@ class Node():
     def is_leaf(self):
         return self.type == 'leaf'
 
-    def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
+    def evaluate(self, scene : Scene, query_object : Furniture, debug=False) -> np.ndarray:
         # returns a 3D array representing the binary mask of all possible object placements in the room
         name = str(len(self))
         if self.type == 'leaf':
@@ -45,11 +45,19 @@ class Node():
             self.mask = csg_operator(mask1, mask2)
             name = name + "_" + self.type
         
-        image = convert_mask_to_image(self.mask, scene)
-        img.imsave(
-            os.path.join("/Users/adrianchang/CS/research/SceneSynth", name + '.png'), 
-            image
-        )
+        if debug:
+            image = convert_mask_to_image(self.mask, scene)
+            img.imsave(
+                os.path.join("/Users/adrianchang/CS/research/SceneSynth", name + '.png'), 
+                image
+            )
+
+            scene_mask = scene.convert_to_mask()
+            scene_mask = np.rot90(scene_mask)
+            img.imsave(
+                os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'scene_mask.png'), 
+                scene_mask
+            )
         return self.mask
 
 class ProgramTree():
@@ -137,18 +145,27 @@ class ProgramTree():
             print("Invalid combination node type")
             return None
 
-    def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
+    def evaluate(self, scene : Scene, query_object : Furniture, debug=False) -> np.ndarray:
         # returns a 3D mask that can be used for evaluation 
-        mask_4d = self.root.evaluate(scene, query_object)
+        mask_4d = self.root.evaluate(scene, query_object, debug=debug)
         # Collapse 4D mask into 3D mask and ensure placement validity inside the room 
         mask_3d = collapse_mask(mask_4d)
+        print("start")
         ensure_placement_validity(mask_3d, scene, query_object)
+        print("end")
 
-        image = convert_mask_to_image(mask_3d, scene)
-        img.imsave(
-            os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'final.png'), 
-            image
-        )
+        if debug:
+            image = convert_mask_to_image(mask_3d, scene)
+            img.imsave(
+                os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'final.png'), 
+                image
+            )
+
+        # scene_mask = scene.convert_to_mask()
+        # img.imsave(
+        #     os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'scene_mask.png'), 
+        #     scene_mask
+        # )
         return mask_3d
 
     def print_program(self) -> None:
