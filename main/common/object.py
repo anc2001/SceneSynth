@@ -1,6 +1,6 @@
 from main.common import utils
 from main.common.object_base import SceneObject, BBox, LineSeg
-from main.config import colors, direction_types_map
+from main.config import colors, direction_types_map, num_angles
 
 import numpy as np
 
@@ -222,6 +222,9 @@ class Furniture(SceneObject):
         returns local index of corresponding side 
         """
         return self.bbox.point_to_side(point)
+    
+    def local_direction_to_world(self, angle):
+        return angle + utils.angle_to_index(self.bbox.rot) % num_angles
 
 class Wall(SceneObject):
     def __init__(self, info, scene, walls) -> None:
@@ -293,3 +296,6 @@ class Wall(SceneObject):
         returns local index of corresponding side 
         """
         return direction_types_map['<pad>']
+    
+    def local_direction_to_world(self, angle):
+        return angle

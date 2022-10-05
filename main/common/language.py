@@ -1,9 +1,15 @@
 from main.common.scene import Scene
 from main.common.object import Furniture
-from main.compiler import solve_constraint
+from main.compiler import ensure_placement_validity, solve_constraint, \
+    convert_mask_to_image, \
+    collapse_mask
 from main.common.utils import raise_exception
 
+from main.config import constraint_types, num_angles
+
+import matplotlib.image as img
 import numpy as np
+import os
 
 class Node():
     """
@@ -28,13 +34,22 @@ class Node():
 
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D array representing the binary mask of all possible object placements in the room
+        name = str(len(self))
         if self.type == 'leaf':
-            solve_constraint(self.constraint, scene, query_object)
+            self.mask = solve_constraint(self.constraint, scene, query_object)
+            name = name + "_" + constraint_types[self.constraint[0]]
         else:
             mask1 = self.left.evaluate(scene, query_object)
             mask2 = self.right.evaluate(scene, query_object)
             csg_operator = np.logical_and if self.type == 'and' else np.logical_or
             self.mask = csg_operator(mask1, mask2)
+            name = name + "_" + self.type
+        
+        image = convert_mask_to_image(self.mask, scene)
+        img.imsave(
+            os.path.join("/Users/adrianchang/CS/research/SceneSynth", name + '.png'), 
+            image
+        )
         return self.mask
 
 class ProgramTree():
@@ -126,7 +141,14 @@ class ProgramTree():
         # returns a 3D mask that can be used for evaluation 
         mask_4d = self.root.evaluate(scene, query_object)
         # Collapse 4D mask into 3D mask and ensure placement validity inside the room 
-        mask_3d = None
+        mask_3d = collapse_mask(mask_4d)
+        ensure_placement_validity(mask_3d, scene, query_object)
+
+        image = convert_mask_to_image(mask_3d, scene)
+        img.imsave(
+            os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'final.png'), 
+            image
+        )
         return mask_3d
 
     def print_program(self) -> None:

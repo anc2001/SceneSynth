@@ -91,8 +91,8 @@ def extract_programs(scene_list):
             # Convert scene to object list and program to structures + constraints
             program_tokens = program.to_tokens()
             query_object_vector = query_object.vectorize(subscene.objects[0])
-            query_object_vector[4] = 0
-            query_object_vector[5] = 0
+            query_object_vector[0, 4] = 0
+            query_object_vector[0, 5] = 0
             subscene_vector = np.append(
                 subscene.vectorize(),
                 query_object_vector,
@@ -110,3 +110,8 @@ def write_program_data(xs, ys):
 
 def read_program_data():
     pass
+
+def test(scene, query_object):
+    # Temp to debug program 
+    program = generate_most_restrictive_program(scene, query_object)
+    program.evaluate(scene, query_object)

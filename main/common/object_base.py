@@ -16,55 +16,6 @@ class SceneObject():
         self.semantic_fronts = info['semantic_fronts']
         self.front_facing = len(self.semantic_fronts) == 1
 
-    def write_to_array(self, scene, image):
-        """
-        Masks the current object in the room  
-        """
-        print("Not Implemented Yet!")
-    
-    def distance(self, object):
-        """
-        Calculates the minimum distance between the this and the given object 
-        Distance value of 0 means that the two objects intersect or overlap 
-
-        returns distance, side 
-        """
-        print("Not Implemented Yet!")
-
-    def world_semantic_fronts(self):
-        """
-        returns the semantic fronts of the object in world space 
-        """
-        print("Not Implemented Yet!")
-     
-    def line_segs_in_direction(self, direction, world_space = True):
-        """
-        returns line_segs with normal that points in direction 'direction'
-        world_space indicates whether the direction is given world space
-            or otherwise relative to the local coordinate from of the object 
-        """
-        print("Not Implemented Yet!")
-    
-    def vectorize():
-        """
-        (category, holds_humans, size, position, rotation) - size and position in 2D
-        """
-        print("Not Implemented Yet!")
-
-    def point_inside(self, point : np.ndarray):
-        """
-        point : np.ndarray of shape (3,)
-        """
-        print("Not Implemented Yet!")
-
-    def point_to_side(self, point : np.ndarray):
-        """
-        point : np.ndarray of shape (3,)
-
-        returns local index of corresponding side 
-        """
-        print("Not Implemented Yet!")
-
 class BBox():
     """
     BBox member variables

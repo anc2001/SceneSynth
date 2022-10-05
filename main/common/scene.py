@@ -134,10 +134,11 @@ class Scene():
                 
         return object_list
     
-    def print(self, image):
+    def convert_to_image(self):
         """
         Prints the orthographic view 
         """
+        image = np.zeros((grid_size, grid_size, 3))
         image[:, :, :] = colors['outside']
 
         # Mask all points inside 
@@ -149,3 +150,4 @@ class Scene():
             object.write_to_image(self, image)
         
         image = np.rot90(image, axes=(0,1))
+        return image
