@@ -4,5 +4,6 @@ from main.config import grid_size
 
 scene_list = get_scene_list()
 scene = scene_list[0]
-for subscene, query_object in scene.permute()[:1]:
-    test(subscene, query_object)
+for i, (subscene, query_object) in enumerate(scene.permute()):
+    print(i)
+    test(subscene, query_object, str(i))

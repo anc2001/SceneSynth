@@ -111,7 +111,8 @@ def write_program_data(xs, ys):
 def read_program_data():
     pass
 
-def test(scene, query_object):
+def test(scene, query_object, program_name):
     # Temp to debug program 
     program = generate_most_restrictive_program(scene, query_object)
-    program.evaluate(scene, query_object, debug=True)
+    program.evaluate(scene, query_object)
+    program.print_program(program_name, scene, query_object)

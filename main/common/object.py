@@ -1,5 +1,5 @@
 from main.common import utils
-from main.common.object_base import SceneObject, BBox, LineSeg
+from main.common import SceneObject, BBox, LineSeg
 from main.config import colors, direction_types_map, num_angles
 
 import numpy as np
@@ -73,7 +73,11 @@ class Furniture(SceneObject):
         self.bbox = BBox(info['object_info']['size'])
         self.center = self.bbox.center
         self.extent = self.bbox.extent
-        
+        self.init_line_segs()
+        self.rotate(- info['object_info']['rotation'])
+        self.translate(info['object_info']['translation'])
+    
+    def init_line_segs(self):
         # Line Segs 
         line_seg_indices = [
             [1, 3], # Right 
@@ -98,9 +102,6 @@ class Furniture(SceneObject):
             line_seg = LineSeg(point1, point2, normal)
             line_segs.append(line_seg)
         self.line_segs = np.array(line_segs)
-
-        self.rotate(- info['object_info']['rotation'])
-        self.translate(info['object_info']['translation'])
 
     def rotate(self, theta):
         """
@@ -133,7 +134,14 @@ class Furniture(SceneObject):
             self.bbox.rot
         ]])
 
-    def write_to_image(self, scene, image):
+    def write_to_image(self, scene, image, normalize = False):
+        current_bbox = self.bbox
+        temp_bbox = BBox(self.bbox.extent / 2)
+        current_line_segs = self.line_segs
+        if normalize:
+            self.bbox = temp_bbox
+            self.init_line_segs()
+        
         # Write bounding box to image 
         for face in self.bbox.faces:
             triangle = self.bbox.vertices[face]
@@ -153,6 +161,10 @@ class Furniture(SceneObject):
             c = segment_centroid + segment_normal * height
             triangle = [a, b, c]
             utils.write_triangle_to_image(triangle, scene, image, triangle_color)
+        
+        if normalize:
+            self.bbox = current_bbox
+            self.line_segs = current_line_segs
     
     def write_to_mask(self, scene, mask):
         for face in self.bbox.faces:
@@ -229,7 +241,7 @@ class Furniture(SceneObject):
         return self.bbox.point_to_side(point)
     
     def local_direction_to_world(self, angle):
-        return angle + utils.angle_to_index(self.bbox.rot) % num_angles
+        return (angle + utils.angle_to_index(self.bbox.rot)) % num_angles
 
 class Wall(SceneObject):
     def __init__(self, info, scene, walls) -> None:

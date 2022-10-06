@@ -5,7 +5,7 @@ from main.compiler import ensure_placement_validity, solve_constraint, \
     collapse_mask
 from main.common.utils import raise_exception
 
-from main.config import constraint_types, num_angles
+from main.config import constraint_types, image_filepath, grid_size
 
 import matplotlib.image as img
 import numpy as np
@@ -32,32 +32,19 @@ class Node():
     def is_leaf(self):
         return self.type == 'leaf'
 
-    def evaluate(self, scene : Scene, query_object : Furniture, debug=False) -> np.ndarray:
+    def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D array representing the binary mask of all possible object placements in the room
         name = str(len(self))
         if self.type == 'leaf':
             self.mask = solve_constraint(self.constraint, scene, query_object)
             name = name + "_" + constraint_types[self.constraint[0]]
         else:
-            mask1 = self.left.evaluate(scene, query_object, debug=debug)
-            mask2 = self.right.evaluate(scene, query_object, debug=debug)
+            mask1 = self.left.evaluate(scene, query_object)
+            mask2 = self.right.evaluate(scene, query_object)
             csg_operator = np.logical_and if self.type == 'and' else np.logical_or
             self.mask = csg_operator(mask1, mask2)
             name = name + "_" + self.type
-        
-        if debug:
-            image = convert_mask_to_image(self.mask, scene)
-            img.imsave(
-                os.path.join("/Users/adrianchang/CS/research/SceneSynth", name + '.png'), 
-                image
-            )
 
-            scene_mask = scene.convert_to_mask()
-            scene_mask = np.rot90(scene_mask)
-            img.imsave(
-                os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'scene_mask.png'), 
-                scene_mask
-            )
         return self.mask
 
 class ProgramTree():
@@ -145,42 +132,76 @@ class ProgramTree():
             print("Invalid combination node type")
             return None
 
-    def evaluate(self, scene : Scene, query_object : Furniture, debug=False) -> np.ndarray:
+    def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D mask that can be used for evaluation 
-        mask_4d = self.root.evaluate(scene, query_object, debug=debug)
+        mask_4d = self.root.evaluate(scene, query_object)
         # Collapse 4D mask into 3D mask and ensure placement validity inside the room 
         mask_3d = collapse_mask(mask_4d)
         ensure_placement_validity(mask_3d, scene, query_object)
+        self.mask = mask_3d
 
-        if debug:
-            image = convert_mask_to_image(mask_3d, scene)
-            img.imsave(
-                os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'final.png'), 
-                image
-            )
+        return self.mask
 
-        # scene_mask = scene.convert_to_mask()
-        # img.imsave(
-        #     os.path.join("/Users/adrianchang/CS/research/SceneSynth", 'scene_mask.png'), 
-        #     scene_mask
-        # )
-        return mask_3d
+    def print_program(self, name, scene, query_object) -> None:
+        parent_folder = os.path.join(image_filepath, name)
+        os.makedirs(parent_folder, exist_ok=True)
 
-    def print_program(self) -> None:
+        fout = open(os.path.join(parent_folder, "program.txt"), "w")
         def print_program_helper(node, count):
             if node.is_leaf():
                 mask_name = f"mask_{count}"
-                print(f"{mask_name} = {node.constraint}")
+                fout.write(f"{mask_name} = {node.constraint}\n")
+                image = convert_mask_to_image(node.mask, scene)
+                img.imsave(
+                    os.path.join(parent_folder, mask_name + '.png'), 
+                    image
+                )
                 return mask_name, count + 1
             else:
                 left_name, new_count = print_program_helper(node.left, count)
                 right_name, newer_count = print_program_helper(node.right, new_count)
                 mask_name = f"mask_{newer_count}"
-                print(f"{mask_name} = {left_name} {node.type} {right_name}")
+                fout.write(f"{mask_name} = {left_name} {node.type} {right_name}\n")
+                image = convert_mask_to_image(node.mask, scene)
+                img.imsave(
+                    os.path.join(parent_folder, mask_name + '.png'), 
+                    image
+                )
                 return mask_name, newer_count + 1
-        
+
         final_name, _ = print_program_helper(self.root, 0)
-        print(f"return {final_name}")
+        fout.write(f"return {final_name}\n")
+        fout.close()
+
+        image = convert_mask_to_image(self.mask, scene)
+        img.imsave(
+            os.path.join(parent_folder, 'final.png'), 
+            image
+        )
+
+        scene_mask = scene.convert_to_mask()
+        scene_mask = ~scene_mask.astype(bool)
+        mask_image = np.repeat(                
+            np.expand_dims(
+                scene_mask, 
+                axis = 2
+            ),
+            3,
+            axis = 2
+        )
+        mask_image = np.rot90(mask_image).astype(float)
+        img.imsave(
+            os.path.join(parent_folder, 'scene_mask.png'), 
+            mask_image
+        )
+
+        image = np.zeros((grid_size, grid_size, 3))
+        query_object.write_to_image(scene, image, normalize= True)
+        image = np.rot90(image)
+        img.imsave(
+            os.path.join(parent_folder, 'query_object.png'), 
+            image
+        )
 
 """
 tokens to tree explanation 

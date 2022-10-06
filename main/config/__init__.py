@@ -25,6 +25,7 @@ def get_network_config() -> dict:
     return toReturn
 
 data_filepath = "/Users/adrianchang/CS/research/SceneSynth/data/"
+image_filepath = os.path.join(data_filepath, "images")
 colors = {
         'outside' : np.array([222, 222, 222]) / 256,
         'inside' : np.array([169, 169, 169]) / 256,
@@ -37,7 +38,7 @@ colors = {
         'directions' :  np.array([[255,0,0], [0,255,0], [0,0,255], [255,255,0]]) / 255
     }
 max_allowed_sideways_reach = 0.6
-max_attach_distance = 0.2
+max_attach_distance = 0.15
 num_angles = 4
 grid_size = 256
 bin_width = (2 * np.pi) / num_angles
