@@ -2,11 +2,6 @@ from main.common.scene import get_scene_list
 from main.program_extraction.data_processing import test
 from main.config import grid_size
 
-import matplotlib.image as img
-import numpy as np
-
-# img.imsave(filepath, image)
-
 scene_list = get_scene_list()
 scene = scene_list[0]
 for subscene, query_object in scene.permute()[:1]:

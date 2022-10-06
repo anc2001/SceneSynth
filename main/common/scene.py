@@ -162,8 +162,9 @@ class Scene():
             triangle = self.vertices[face]
             write_triangle_to_mask(triangle, self, mask)
         
+        mask = (~mask.astype(bool)).astype(int)
+
         for object in self.objects:
             object.write_to_mask(self, mask)
         
-        mask = ~mask.astype(int)
         return mask

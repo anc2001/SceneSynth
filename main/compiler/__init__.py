@@ -41,6 +41,7 @@ def ensure_placement_validity(centroid_mask, scene, query_object):
     for possible_orientation in range(num_angles):
         bbox = BBox(query_object.extent / 2)
         bbox.rotate(np.array([possible_orientation * (2 * np.pi / num_angles)]))
+        bbox.translate(scene.corner_pos)
         location_slice = centroid_mask[possible_orientation]
         possible_placements = np.argwhere(location_slice == 1)
         for x_and_y in possible_placements:
