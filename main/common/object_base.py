@@ -9,12 +9,11 @@ Unified Object API
 
 """
 class SceneObject():
-    def init(self, info):
+    def __init__(self, info) -> None:
         self.id = info['id']
         self.color = info['color']
         self.holds_humans = info['holds_humans']
         self.semantic_fronts = info['semantic_fronts']
-        self.info = dict(info)
 
     def write_to_array(self, scene, image):
         """
@@ -75,7 +74,7 @@ class BBox():
     self.bins
     self.bottom_right
     """
-    def init(self, size):
+    def __init__(self, size) -> None:
         self.extent = 2 * size
         max_bound = size
         min_bound = -size
@@ -102,22 +101,10 @@ class BBox():
         angle_1 = np.arccos(np.dot(v3, v1))
         angle_2 = angle_1 + np.arccos(np.dot(v1, v0))
         angle_3 = angle_2 + np.arccos(np.dot(v0, v2))
-        self.bins = np.array([0, angle_1, angle_2, angle_3])
+        self.bins = [0, angle_1, angle_2, angle_3]
         self.bottom_right = utils.normalize(self.vertices[3])
         self.rot = 0
-        return self
     
-    def copy(self):
-        new_bbox = BBox()
-        new_bbox.extent = np.array(self.extent)
-        new_bbox.vertices = np.array(self.vertices)
-        new_bbox.faces = np.array(self.faces)
-        new_bbox.center = np.array(self.center)
-        new_bbox.bins = np.array(self.bins)
-        new_bbox.bottom_right = np.array(self.bottom_right)
-        new_bbox.rot = self.rot
-        return new_bbox
-
     def rotate(self, theta):
         """
         theta : float of rotation given in radians 
@@ -164,14 +151,10 @@ class BBox():
         return angle_idx 
         
 class LineSeg():
-    def init(self, point1, point2, normal):
+    def __init__(self, point1, point2, normal) -> None:
         self.p1 = np.array(point1)
         self.p2 = np.array(point2)
         self.normal = np.array(normal)
-        return self
-    
-    def copy(self):
-        return LineSeg().init(self.p1, self.p2, self.normal)
 
     def rotate(self, theta):
         """

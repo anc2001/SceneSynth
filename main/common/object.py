@@ -1,6 +1,6 @@
 from main.common import utils
 from main.common.object_base import SceneObject, BBox, LineSeg
-from main.config import colors, direction_types_map, direction_types
+from main.config import colors, direction_types_map
 
 import numpy as np
 
@@ -18,7 +18,7 @@ def get_object(*args, **kwargs):
         info['holds_humans'] = 0
         info['semantic_fronts'] = [0, 1, 2, 3]
 
-        return Wall().init(info, scene, walls)
+        return Wall(info, scene, walls)
     elif type == 'furniture':
         object_info = args[1]
 
@@ -60,7 +60,7 @@ def get_object(*args, **kwargs):
         
         if valid:
             info['object_info'] = object_info
-            return Furniture().init(info)
+            return Furniture(info)
         else:
             return None
     else:
@@ -68,10 +68,11 @@ def get_object(*args, **kwargs):
         return None  
 
 class Furniture(SceneObject):
-    def init(self, info):
-        super().init(info)
-        self.bbox = BBox()
-        self.bbox.init(info['object_info']['size'])
+    def __init__(self, info) -> None:
+        super().__init__(info)
+        self.bbox = BBox(info['object_info']['size'])
+        self.center = self.bbox.center
+        self.extent = self.bbox.extent
         
         # Line Segs 
         line_seg_indices = [
@@ -94,32 +95,12 @@ class Furniture(SceneObject):
             normal = line_seg_normals[i]
             point1 = self.bbox.vertices[indices[0]]
             point2 = self.bbox.vertices[indices[1]]
-            line_seg = LineSeg().init(point1, point2, normal)
+            line_seg = LineSeg(point1, point2, normal)
             line_segs.append(line_seg)
         self.line_segs = np.array(line_segs)
 
         self.rotate(- info['object_info']['rotation'])
         self.translate(info['object_info']['translation'])
-
-        self.center = self.bbox.center
-        self.extent = self.bbox.extent
-        return self
-
-    def copy(self):
-        new_furniture = Furniture()
-        new_furniture.bbox = self.bbox.copy()
-        line_segs = []
-        for line_seg in self.line_segs:
-            line_segs.append(line_seg.copy())
-        new_furniture.line_segs = np.array(line_segs)
-        new_furniture.center = new_furniture.bbox.center
-        new_furniture.extent = new_furniture.bbox.extent
-
-        new_furniture.id = self.id
-        new_furniture.color = self.color
-        new_furniture.holds_humans = self.holds_humans 
-        new_furniture.semantic_fronts = self.semantic_fronts
-        return new_furniture
 
     def rotate(self, theta):
         """
@@ -136,12 +117,6 @@ class Furniture(SceneObject):
         self.bbox.translate(amount)
         for line_seg in self.line_segs:
             line_seg.translate(amount) 
-    
-    def reset_placement(self):
-        theta = -np.array([self.bbox.rot])
-        self.rotate(theta)
-        translation = -self.bbox.center
-        self.translate(translation)
     
     def vectorize(self, wall_object):
         """
@@ -224,8 +199,6 @@ class Furniture(SceneObject):
         world_space indicates whether the direction is given world space
             or otherwise relative to the local coordinate from of the object 
         """
-        if direction_types[direction] == '<pad>':
-            return self.line_segs
         if world_space:
             line_segs = []
             for line_seg in self.line_segs:
@@ -251,8 +224,8 @@ class Furniture(SceneObject):
         return self.bbox.point_to_side(point)
 
 class Wall(SceneObject):
-    def init(self, info, scene, walls):
-        super().init(info)
+    def __init__(self, info, scene, walls) -> None:
+        super().__init__(info)
         self.line_segs = []
         for wall in walls:
             for triangle in scene.faces:
@@ -264,7 +237,7 @@ class Wall(SceneObject):
                             otherPoint = point
                     
                     two_points = scene.vertices[wall]
-                    line_seg = LineSeg().init(two_points[0], two_points[1], None)
+                    line_seg = LineSeg(two_points[0], two_points[1], None)
                     point_to = scene.vertices[otherPoint]
                     normal = line_seg.normal_to_point(point_to)
                     line_seg.normal = normal
@@ -274,25 +247,6 @@ class Wall(SceneObject):
         self.faces = scene.faces
         self.center = np.mean(self.vertices, axis = 0)
         self.extent = np.amax(self.vertices, axis = 0) - np.amin(self.vertices, axis = 0)
-        return self
-    
-    def copy(self):
-        new_wall = Wall()
-        line_segs = []
-        for line_seg in self.line_segs:
-            line_segs.append(line_seg.copy())
-        new_wall.line_segs = np.array(line_segs)
-        new_wall.vertices = np.array(self.vertices)
-        new_wall.faces = np.array(self.faces)
-        new_wall.center = self.center
-        new_wall.extent = self.extent
-
-        new_wall.id = self.id
-        new_wall.color = self.color
-        new_wall.holds_humans = self.holds_humans 
-        new_wall.semantic_fronts = self.semantic_fronts
-
-        return new_wall
 
     def vectorize(self):
         """
@@ -316,8 +270,6 @@ class Wall(SceneObject):
             or otherwise relative to the local coordinate from of the object 
         """
         # There is no difference between world_space and local space for wall, because the local coordinate frame is the world space! 
-        if direction_types[direction] == '<pad>':
-            return self.line_segs
         line_segs = []
         for line_seg in self.line_segs:
             angle_idx = utils.vector_angle_index(np.array([1,0,0]), line_seg.normal)

@@ -1,6 +1,6 @@
 from main.common.scene import Scene
 from main.common.object import Furniture
-from main.executor import solve_constraint
+from main.compiler import solve_constraint
 from main.common.utils import raise_exception
 
 import numpy as np
