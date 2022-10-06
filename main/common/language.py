@@ -39,8 +39,8 @@ class Node():
             self.mask = solve_constraint(self.constraint, scene, query_object)
             name = name + "_" + constraint_types[self.constraint[0]]
         else:
-            mask1 = self.left.evaluate(scene, query_object)
-            mask2 = self.right.evaluate(scene, query_object)
+            mask1 = self.left.evaluate(scene, query_object, debug=debug)
+            mask2 = self.right.evaluate(scene, query_object, debug=debug)
             csg_operator = np.logical_and if self.type == 'and' else np.logical_or
             self.mask = csg_operator(mask1, mask2)
             name = name + "_" + self.type
@@ -150,9 +150,7 @@ class ProgramTree():
         mask_4d = self.root.evaluate(scene, query_object, debug=debug)
         # Collapse 4D mask into 3D mask and ensure placement validity inside the room 
         mask_3d = collapse_mask(mask_4d)
-        print("start")
         ensure_placement_validity(mask_3d, scene, query_object)
-        print("end")
 
         if debug:
             image = convert_mask_to_image(mask_3d, scene)
