@@ -9,7 +9,6 @@ def generate_most_restrictive_program(room, query_object):
     query_object_idx = len(room.objects)
     query_semantic_fronts = query_object.world_semantic_fronts()
     distance_bins = [0, max_attach_distance, max_allowed_sideways_reach]
-    front_facing = len(query_semantic_fronts) == 1
     
     program = ProgramTree()
     for reference_object_idx, object in enumerate(room.objects):
@@ -51,7 +50,7 @@ def generate_most_restrictive_program(room, query_object):
             other_tree.from_constraint(constraint)
             subprogram.combine('and', other_tree)
         else: # face, not possible for query object to both face and be aligned with object 
-            if front_facing and len(subprogram):
+            if query_object.front_facing and len(subprogram):
                 front_facing_direction = list(query_semantic_fronts)[0]
                 if abs(front_facing_direction - side) == 2:
                     constraint = [
@@ -84,26 +83,35 @@ def generate_most_restrictive_program(room, query_object):
     return program
 
 def extract_programs(scene_list):
-    objects = []
-    programs = []
+    xs = []
+    ys = []
     for scene in scene_list:
         for subscene, query_object in scene.permute():
             program = generate_most_restrictive_program(subscene, query_object)
             # Convert scene to object list and program to structures + constraints
             program_tokens = program.to_tokens()
+            query_object_vector = query_object.vectorize(subscene.objects[0])
+            query_object_vector[0, 4] = 0
+            query_object_vector[0, 5] = 0
             subscene_vector = np.append(
                 subscene.vectorize(),
-                query_object.vectorize(subscene.objects[0]),
+                query_object_vector,
                 axis = 0
             )
-            objects.append(subscene_vector)
-            programs.append(program_tokens)
+            xs.append(subscene_vector)
+            ys.append(program_tokens)
     
-    write_program_data(objects, programs)
+    write_program_data(xs, ys)
 
-def write_program_data(objects_list, programs_list):
-    for objects_vector, program_tokens in zip(objects_list, programs_list):
-        pass
+def write_program_data(xs, ys):
+    for objects_vector, program_tokens in zip(xs, ys):
+        structure_sequence = program_tokens['structure']
+        constraint_sequence = program_tokens['constraints']
 
 def read_program_data():
     pass
+
+def test(scene, query_object):
+    # Temp to debug program 
+    program = generate_most_restrictive_program(scene, query_object)
+    program.evaluate(scene, query_object, debug=True)
