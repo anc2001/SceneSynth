@@ -105,7 +105,9 @@ class BBox():
 class LineSeg():
     def __init__(self, point1, point2, normal) -> None:
         self.p1 = np.array(point1)
+        self.p1[1] = 0
         self.p2 = np.array(point2)
+        self.p2[1] = 0
         self.normal = np.array(normal)
 
     def rotate(self, theta):
@@ -127,6 +129,9 @@ class LineSeg():
     
     def centroid(self):
         return np.mean([self.p1, self.p2], axis = 0)
+    
+    def length(self):
+        return np.linalg.norm(self.p1 - self.p2)
     
     def normal_to_point(self, point : np.ndarray):
         """

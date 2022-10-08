@@ -1,5 +1,5 @@
-from main.compiler.location_constraints import location_constraint
-from main.compiler.orientation_constraints import align, face
+from main.compiler.constraints import align, face, \
+    location_constraint
 from main.compiler.mask_operations import \
     collapse_mask, convert_mask_to_image
 from main.common.object import BBox
