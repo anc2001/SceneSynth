@@ -1,6 +1,7 @@
 from main.common import utils
-from main.common import SceneObject, BBox, LineSeg
-from main.config import colors, direction_types_map, num_angles
+from main.common.object_base import BBox, LineSeg
+from main.config import colors, direction_types_map, \
+    num_angles, max_visibility_distance
 
 import numpy as np
 
@@ -66,6 +67,14 @@ def get_object(*args, **kwargs):
     else:
         print("Invalid type")
         return None  
+
+class SceneObject():
+    def __init__(self, info) -> None:
+        self.id = info['id']
+        self.color = info['color']
+        self.holds_humans = info['holds_humans']
+        self.semantic_fronts = info['semantic_fronts']
+        self.front_facing = len(self.semantic_fronts) == 1
 
 class Furniture(SceneObject):
     def __init__(self, info) -> None:
@@ -152,7 +161,7 @@ class Furniture(SceneObject):
         height = (np.sqrt(3) * base_length) / 2 # Equilateral triangle 
         for direction, segment in enumerate(self.line_segs):
             triangle_color = colors['directions'][direction]
-            segment_centroid = segment.centroid()
+            segment_centroid = segment.calculate_centroid()
             segment_normal = np.array(segment.normal)
             segment_vector = utils.normalize(segment.p2 - segment.p1)
 
@@ -242,6 +251,25 @@ class Furniture(SceneObject):
     
     def local_direction_to_world(self, angle):
         return (angle + utils.angle_to_index(self.bbox.rot)) % num_angles
+
+    def check_intersection(self, ray, ray_origin):
+        emanating = LineSeg(
+            ray_origin, 
+            ray_origin + ray * 20,
+            np.array([0,0,0])
+        )
+        to_sort = []
+        for idx, line_seg in enumerate(self.line_segs):
+            point = emanating.intersect(line_seg)
+            if len(point):
+                distance = np.linalg.norm(point - ray_origin)
+                to_sort.append((distance, idx))
+        
+        if len(to_sort):
+            min_distance_tuple = sorted(to_sort, key = lambda x : x[0])[0]
+            return True, min_distance_tuple[1]
+        else:
+            return False, 4
 
 class Wall(SceneObject):
     def __init__(self, info, scene, walls) -> None:

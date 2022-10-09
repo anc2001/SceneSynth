@@ -2,20 +2,6 @@ from main.common import utils
 
 import numpy as np
 
-"""
-Unified Object API 
-- in what world space direction does the object currently face 
-- given another object whether it faces that object or not 
-
-"""
-class SceneObject():
-    def __init__(self, info) -> None:
-        self.id = info['id']
-        self.color = info['color']
-        self.holds_humans = info['holds_humans']
-        self.semantic_fronts = info['semantic_fronts']
-        self.front_facing = len(self.semantic_fronts) == 1
-
 class BBox():
     """
     BBox member variables
@@ -127,7 +113,7 @@ class LineSeg():
         self.p1 += amount
         self.p2 += amount
     
-    def centroid(self):
+    def calculate_centroid(self):
         return np.mean([self.p1, self.p2], axis = 0)
     
     def length(self):

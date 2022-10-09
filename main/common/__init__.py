@@ -1,1 +1,2 @@
-from main.common.object_base import SceneObject, BBox, LineSeg
+from main.common.object import BBox, LineSeg
+from main.common.scene import get_scene_list

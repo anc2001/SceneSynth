@@ -25,12 +25,12 @@ def location_constraint(query_object, reference_object, direction, scene, attach
             side = world_direction if pad_flag else reference_line_seg_direction
             line_segs = reference_object.line_segs_in_direction(side)
             idx = extent_reference_guide[side][possible_orientation]
-
-            distance1 = 0 if attach else (query_object.extent[idx] / 2) + max_attach_distance 
-            distance2 = (query_object.extent[idx] / 2) + forgiveness if attach else forgiveness
+            
+            object_extent = query_object.extent[idx] / 2
+            distance = object_extent if attach else object_extent + max_attach_distance 
             for line_seg in line_segs:
-                p1 = line_seg.p1 + line_seg.normal * distance1
-                p2 = line_seg.p2 + line_seg.normal * distance1
+                p1 = line_seg.p1 + line_seg.normal * distance
+                p2 = line_seg.p2 + line_seg.normal * distance
 
                 extension = query_object.extent[0 if idx else 2] - line_seg.length()
                 if extension > 0:
@@ -38,8 +38,8 @@ def location_constraint(query_object, reference_object, direction, scene, attach
                     p1 = p1 + u * extension
                     p2 = p2 - u * extension
                     
-                p3 = p1 + line_seg.normal * distance2
-                p4 = p2 + line_seg.normal * distance2
+                p3 = p1 + line_seg.normal * forgiveness
+                p4 = p2 + line_seg.normal * forgiveness
                 triangles = np.array([
                     [p1, p2, p3],
                     [p2, p4, p3]
@@ -68,6 +68,7 @@ def align(query_object, reference_object, scene):
     return mask
 
 def face(query_object, reference_object, scene):
+    # Does not matter what the semantic fronts of the reference object are 
     if not query_object.front_facing:
         raise_exception("front_facing")
         
@@ -75,19 +76,13 @@ def face(query_object, reference_object, scene):
     query_front = list(query_object.semantic_fronts)[0]
     for world_direction in range(num_angles):
         line_segs = reference_object.line_segs_in_direction(world_direction)
+
         opposite_direction = int((world_direction - (num_angles / 2)) % num_angles)
         valid_orientation = (opposite_direction - query_front) % num_angles
         for line_seg in line_segs:
             p1 = line_seg.p1
             p2 = line_seg.p2
-            
-            idx = extent_reference_guide[world_direction][valid_orientation]
-            extension = query_object.extent[0 if idx else 2] - line_seg.length()
-            if extension > 0:
-                u = normalize(p1 - p2)
-                p1 = p1 + u * extension
-                p2 = p2 - u * extension
-                   
+                               
             p3 = p1 + line_seg.normal * grid_size * scene.cell_size
             p4 = p2 + line_seg.normal * grid_size * scene.cell_size
             triangles = np.array([

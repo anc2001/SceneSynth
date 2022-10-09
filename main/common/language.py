@@ -123,11 +123,15 @@ class ProgramTree():
     def combine(self, type, other_tree):
         # Convention is the self goes on the left, other on the right
         if type == 'or' or type == 'and':
-            new_root = Node(type)
-            new_root.left = self.root
-            new_root.right = other_tree.root
-            self.root = new_root
-            self.program_length = len(new_root)
+            if len(self.root):
+                new_root = Node(type)
+                new_root.left = self.root
+                new_root.right = other_tree.root
+                self.root = new_root
+                self.program_length = len(new_root)
+            else:
+                self.root = other_tree.root
+                self.program_length = other_tree.program_length
         else:
             print("Invalid combination node type")
             return None
