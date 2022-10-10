@@ -1,3 +1,5 @@
+from main.config import constraint_types, object_types, direction_types
+
 # Full implementation of the model end to end 
 import torch
 from torch import nn, Tensor
@@ -7,7 +9,7 @@ from program_line_decoder import ProgramLineDecoderModel
 from utils import PositionalEncoding, generate_square_subsequent_mask
 
 class ModelCore(nn.Module):
-    def __init__(self, d_model : int, nhead : int, num_layers : int):
+    def __init__(self, d_model : int, nhead : int, num_layers : int, loss_func):
         # d_model: dimension of the model
         # nhead: number of heads in the multiheadattention models
         super().__init__()
@@ -15,12 +17,12 @@ class ModelCore(nn.Module):
         self.nhead = nhead
         self.object_encoder = ObjectEncoderModel(
             d_model=self.d_model,
-            num_obj_categories=len(variables.OBJECT_CATEGORIES) + 1, 
+            num_obj_categories=len(object_types) + 1, 
         )
         self.constraint_encoder = ProgramLineEncoderModel(
             d_model=self.d_model,
-            num_constraint_categories=len(variables.CONSTRAINT_TYPES) + 1,
-            num_directions=len(variables.DIRECTIONS) + 1
+            num_constraint_categories=len(constraint_types) + 1,
+            num_directions=len(direction_types) + 1
         )
 
         self.transformer_encoder = nn.TransformerEncoder(
@@ -42,7 +44,7 @@ class ModelCore(nn.Module):
 
         self.positional_encoding = PositionalEncoding(self.d_model)
         self.program_line_decoder = ProgramLineDecoderModel(self.d_model)
-        self.loss_fnc = torch.nn.CrossEntropyLoss(reduction='none')
+        self.loss_fnc = loss_func
 
     def inference(self, objects : list) -> Tensor:
         src_e = self.object_encoder(

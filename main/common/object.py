@@ -1,7 +1,8 @@
 from main.common import utils
 from main.common.object_base import BBox, LineSeg
 from main.config import colors, direction_types_map, \
-    num_angles, max_visibility_distance
+    num_angles, max_visibility_distance, \
+    object_types_map
 
 import numpy as np
 
@@ -15,7 +16,7 @@ def get_object(*args, **kwargs):
 
         info = {}
         info['color'] = colors['wall']
-        info['id'] = 0
+        info['id'] = object_types_map['wall']
         info['holds_humans'] = 0
         info['semantic_fronts'] = [0, 1, 2, 3]
 
@@ -29,32 +30,32 @@ def get_object(*args, **kwargs):
         valid = False
         if model_info['super_category'] == 'bed':
             info['color'] = colors['bed']
-            info['id'] = 1
+            info['id'] = object_types_map['bed']
             info['holds_humans'] = True
             info['semantic_fronts'] = {1}
             valid = True
         elif model_info['super_category'] == 'chair':
             info['color'] = colors['chair']
-            info['id'] = 5
+            info['id'] = object_types_map['chair']
             info['holds_humans'] = True
             info['semantic_fronts'] = {1}
             valid = True
         elif model_info['super_category'] == 'cabinet/shelf/desk':
             if model_info['category'] == 'wardrobe':
                 info['color'] = colors['wardrobe']
-                info['id'] = 2
+                info['id'] = object_types_map['wardrobe']
                 info['holds_humans'] = False
                 info['semantic_fronts'] = {1}
                 valid = True
             elif model_info['category'] == 'nightstand':
                 info['color'] = colors['nightstand']
-                info['id'] = 3
+                info['id'] = object_types_map['nightstand']
                 info['holds_humans'] = False
                 info['semantic_fronts'] = {1}
                 valid = True
         elif model_info['super_category'] == 'table':
             info['color'] = colors['desk']
-            info['id'] = 4
+            info['id'] = object_types_map['desk']
             info['holds_humans'] = False
             info['semantic_fronts'] = {0, 1, 2, 3}
             valid = True

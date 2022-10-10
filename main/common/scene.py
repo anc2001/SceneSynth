@@ -8,12 +8,13 @@ import numpy as np
 import open3d as o3d
 import pickle
 import os 
+from tqdm import tqdm
 
 def get_scene_list():
     scene_list = np.array([])
     with open(os.path.join(data_filepath, 'kai_parse.pkl'), 'rb') as f:
         room_info_list = pickle.load(f)
-        for room_info in room_info_list:
+        for room_info in tqdm(room_info_list):
             scene = Scene(room_info = room_info)
             scene_list = np.append(scene_list, scene)
     return scene_list

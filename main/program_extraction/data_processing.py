@@ -5,7 +5,7 @@ from main.config import \
     data_filepath
 
 import numpy as np
-import tqdm
+from tqdm import tqdm
 import pickle
 import os
 

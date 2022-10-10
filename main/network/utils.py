@@ -10,9 +10,9 @@ def load_model(model, path):
 
 def optimizer_factory(model, config):
     if config['optimizer'] == 'adam':
-        return torch.optim.Adam(model.parameters(), lr=config['Network']['learning_rate'])
+        return torch.optim.Adam(model.parameters(), lr=config['Training']['lr'])
     elif config['optimizer'] == 'sgd':
-        return torch.optim.SGD(model.parameters(), lr=config['Network']['learning_rate'])
+        return torch.optim.SGD(model.parameters(), lr=config['Training']['lr'])
     else:
         raise ValueError('Optimizer not supported')
 
