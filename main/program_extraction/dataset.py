@@ -174,10 +174,8 @@ class ProgramDataset(Dataset):
             else:
                 tgt_c = np.expand_dims(constraints, axis = 1)
         
-        tgt_padding_mask = torch.transpose(
-            torch.tensor(tgt == structure_vocab_map['<pad>']), 
-            0, 
-            1
+        tgt_padding_mask = np.transpose(
+            tgt == structure_vocab_map['<pad>']
         )
         return (
             torch.tensor(src).float().to(device),
