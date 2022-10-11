@@ -1,22 +1,26 @@
 from main.program_extraction import get_dataloaders
 from main.network.utils import \
     optimizer_factory, loss_factory
-from main.config import get_network_config
+from main.config import get_network_config, data_filepath
 from main.network.core import ModelCore
+from main.network.utils import save_model
 
 import torch
 from tqdm import tqdm
 import numpy as np
+import os
 
 def train_network():
     train, test, val = get_dataloaders()
     network_config = get_network_config()
+    device = network_config['device']
     model = ModelCore(
         d_model = network_config['Architecture']['d_model'],
         nhead = network_config['Architecture']['nhead'],
         num_layers= network_config['Architecture']['d_model'],
         loss_func=loss_factory(network_config)
     )
+    model.to(device)
 
     optimizer = optimizer_factory(model, network_config)
 
@@ -82,7 +86,8 @@ def train_network():
                 validation_accuracies.append(accuracy)  
             
         print("Epoch: {}, Validation Loss: {}, Validation Accuracy: {}".format(epoch, validation_loss / num_training_examples, np.mean(validation_accuracies)))
-
+    
+    save_model(model, os.path.join(data_filepath, "model.pt"))
 # def test(model, test_dataloader):
 #     model.eval()
 #     with torch.no_grad():
