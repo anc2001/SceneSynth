@@ -3,6 +3,9 @@ from main.config.network_config import get_network_config
 import os
 import numpy as np
 
+def generate_idx_map(list_of_vals):
+    return {val : idx  for idx, val in enumerate(list_of_vals)}
+
 data_filepath = "/Users/adrianchang/CS/research/SceneSynth/data/"
 image_filepath = os.path.join(data_filepath, "images")
 colors = {
@@ -25,10 +28,11 @@ bin_width = (2 * np.pi) / num_angles
 
 # Language stuff 
 structure_vocab = ['c', 'or', 'and', '<sos>', '<eos>', '<pad>']
+structure_vocab_map = generate_idx_map(structure_vocab)
 constraint_types = ['attach', 'reachable_by_arm', 'align', 'face']
-constraint_types_map = {type : idx  for idx, type in enumerate(constraint_types)}
+constraint_types_map = generate_idx_map(constraint_types)
 direction_types = ['right', 'up', 'left', 'down', '<pad>']
-direction_types_map = {type : idx  for idx, type in enumerate(direction_types)}
+direction_types_map = generate_idx_map(direction_types)
 
 object_types = ['wall', 'bed', 'wardrobe', 'nightstand', 'desk', 'chair']
-object_types_map = {type : idx  for idx, type in enumerate(object_types)}
+object_types_map = generate_idx_map(object_types)

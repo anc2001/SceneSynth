@@ -1,5 +1,5 @@
 from main.program_extraction.data_processing import read_program_data
-from main.config import get_network_config, structure_vocab
+from main.config import get_network_config, structure_vocab_map
 
 import torch
 from torch.utils.data import Dataset
@@ -10,10 +10,10 @@ from torch.utils.data import DataLoader
 
 network_config = get_network_config()
 device = network_config['device']
-structure_vocab_map = {word : idx  for idx, word in enumerate(structure_vocab)}
 
 def get_dataloaders():
     # Return the dataloader
+
     dataset = ProgramDataset()
 
     train_size = int(0.8 * len(dataset))
@@ -73,6 +73,8 @@ class ProgramDataset(Dataset):
             structure_max_length = max(len(sample[1]['structure']), structure_max_length)
             constraints_max_length = max(len(sample[1]['constraints']), constraints_max_length)
         
+        structure_max_length += 2
+
         object_representation_length = len(samples[0][0][0])
         constraint_representation_length = 4
 
@@ -117,6 +119,13 @@ class ProgramDataset(Dataset):
 
             structure_sequence = program['structure']
             structure_sequence = np.array([structure_vocab_map[word] for word in structure_sequence])
+            structure_sequence = np.concatenate(
+                [
+                    [structure_vocab_map['<sos>']],
+                    structure_sequence,
+                    [structure_vocab_map['<eos>']]
+                ]
+            )
 
             structure_sequence = np.append(
                 structure_sequence, 
@@ -138,10 +147,9 @@ class ProgramDataset(Dataset):
             constraints = program['constraints']
 
             constraints_padding_mask = np.append(
-                np.zeros(len(constraints)),
+                np.zeros(len(constraints)), 
                 np.ones(constraints_max_length - len(constraints))
             )
-
             constraints = np.append(
                 constraints,
                 np.zeros([constraints_max_length - len(constraints), constraint_representation_length]),
@@ -149,13 +157,13 @@ class ProgramDataset(Dataset):
             )
 
             if len(tgt_c_padding_mask):
-                tgt_c_padding_mask= np.append(
-                    tgt_c_padding_mask, 
-                    np.expand_dims(constraints_padding_mask, axis = 0), 
-                    axis = 0
+                tgt_c_padding_mask = np.append(
+                    tgt_c_padding_mask,
+                    np.expand_dims(constraints_padding_mask, axis =1),
+                    axis = 1
                 )
             else:
-                tgt_c_padding_mask = np.expand_dims(constraints_padding_mask, axis = 0)
+                tgt_c_padding_mask = np.expand_dims(constraints_padding_mask, axis = 1)
 
             if len(tgt_c):
                 tgt_c = np.append(
@@ -166,13 +174,16 @@ class ProgramDataset(Dataset):
             else:
                 tgt_c = np.expand_dims(constraints, axis = 1)
         
-        tgt_padding_mask = np.transpose(tgt == structure_vocab_map['<pad>'])
-
-        yield (
+        tgt_padding_mask = torch.transpose(
+            torch.tensor(tgt == structure_vocab_map['<pad>']), 
+            0, 
+            1
+        )
+        return (
             torch.tensor(src).float().to(device),
             torch.tensor(src_padding_mask).bool().to(device), 
             torch.tensor(tgt).float().to(device),
-            torch.tensor(tgt_padding_mask).bool().to(device),
+            torch.tensor(tgt_padding_mask).bool().to(device), 
             torch.tensor(tgt_c).float().to(device),
             torch.tensor(tgt_c_padding_mask).bool().to(device),
         )

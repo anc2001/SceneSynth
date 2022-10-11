@@ -25,20 +25,31 @@ def train_network():
         epoch_accuracies = []
         model.train()
         print("Training epoch {}".format(epoch))
-        for src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask in tqdm(train):
-            output = model(
-                src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask
+        for vals in tqdm(train):
+            src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask = vals
+            structure_preds, constraint_preds = model(
+                src, src_padding_mask, 
+                tgt, tgt_padding_mask,
+                tgt_c, tgt_c_padding_mask
             )
 
             optimizer.zero_grad()
             # Compute Loss
-            loss = model.loss(output, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask)
+            loss = model.loss(
+                structure_preds, 
+                constraint_preds, 
+                tgt, tgt_padding_mask, 
+                tgt_c, tgt_c_padding_mask
+            )
             # Backpropagation 
             loss.backward()
             # Update
             optimizer.step()
 
-            accuracy = model.accuracy_fnc(output, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask)
+            accuracy = model.accuracy_fnc(
+                structure_preds, tgt, 
+                constraint_preds, tgt_c, tgt_c_padding_mask
+            )
             epoch_accuracies.append(accuracy)
             epoch_loss += loss.item()
 
@@ -50,13 +61,39 @@ def train_network():
         validation_loss = 0
         with torch.no_grad():
             print("Validating epoch {}".format(epoch))
-            for src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask in tqdm(val):
-                output = model(
-                    src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask
+            for vals in tqdm(val):
+                src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask = vals
+                structure_preds, constraint_preds = model(
+                    src, src_padding_mask, 
+                    tgt, tgt_padding_mask,
+                    tgt_c, tgt_c_padding_mask
                 )
-                loss = model.loss(output, tgt, tgt_padding_mask)
-                accuracy = model.accuracy_fnc(output, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask)
+                loss = model.loss(
+                    structure_preds, 
+                    constraint_preds, 
+                    tgt, tgt_padding_mask, 
+                    tgt_c, tgt_c_padding_mask
+                )
+                accuracy = model.accuracy_fnc(
+                    structure_preds, tgt, 
+                    constraint_preds, tgt_c, tgt_c_padding_mask
+                )
                 validation_loss += loss.item()
                 validation_accuracies.append(accuracy)  
             
         print("Epoch: {}, Validation Loss: {}, Validation Accuracy: {}".format(epoch, validation_loss / num_training_examples, np.mean(validation_accuracies)))
+
+# def test(model, test_dataloader):
+#     model.eval()
+#     with torch.no_grad():
+#         loss_sum = 0
+#         accuracies = []
+#         for src, src_key_padding_mask, tgt, tgt_key_padding_mask in tqdm(test_dataloader):
+#             output = model(src, src_key_padding_mask, tgt, tgt_key_padding_mask)
+#             loss = model.loss(output, tgt, tgt_key_padding_mask)
+#             accuracy = model.accuracy_fnc(output, tgt, tgt_key_padding_mask)
+#             loss_sum += loss.item()
+#             accuracies.append(accuracy)
+
+#         num_test_examples = len(test_dataloader)
+#         print("Test Loss: {}, Test Accuracy: {}".format(loss_sum / num_test_examples, np.mean(accuracies)))

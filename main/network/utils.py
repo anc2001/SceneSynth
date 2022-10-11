@@ -9,15 +9,15 @@ def load_model(model, path):
     model.load_state_dict(torch.load(path))
 
 def optimizer_factory(model, config):
-    if config['optimizer'] == 'adam':
+    if config['Training']['optimizer'] == 'adam':
         return torch.optim.Adam(model.parameters(), lr=config['Training']['lr'])
-    elif config['optimizer'] == 'sgd':
+    elif config['Training']['optimizer'] == 'sgd':
         return torch.optim.SGD(model.parameters(), lr=config['Training']['lr'])
     else:
         raise ValueError('Optimizer not supported')
 
 def loss_factory(config):
-    if config['Network']['loss'] == 'cross_entropy':
+    if config['Architecture']['loss'] == 'cross_entropy':
         return torch.nn.CrossEntropyLoss(reduction='none')
     else:
         raise ValueError('Loss not supported')
