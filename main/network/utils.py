@@ -22,9 +22,9 @@ def loss_factory(config):
     else:
         raise ValueError('Loss not supported')
 
-def generate_square_subsequent_mask(sz):
+def generate_square_subsequent_mask(sz, device):
     # sz: sequence length
-    return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1)
+    return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1).to(device)
 
 class FixedPositionalEncoding(nn.Module):
     def __init__(self, proj_dims, val=0.1):

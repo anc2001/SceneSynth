@@ -34,7 +34,8 @@ def train_network():
             structure_preds, constraint_preds = model(
                 src, src_padding_mask, 
                 tgt, tgt_padding_mask,
-                tgt_c, tgt_c_padding_mask
+                tgt_c, tgt_c_padding_mask,
+                device
             )
 
             optimizer.zero_grad()
