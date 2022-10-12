@@ -67,19 +67,36 @@ class ModelCore(nn.Module):
         print(tgt_c_padding_mask.is_cuda)
 
         src_e = self.object_encoder(src)
+
+        print(src_e.is_cuda)
+
         src_e = self.positional_encoding(src_e)
+
+        print(src_e.is_cuda)
 
         memory = self.transformer_encoder(
             src_e, 
             src_key_padding_mask=src_padding_mask
         )
 
+        print(memory.is_cuda)
+
         tgt_e = self.structure_embedding(tgt.int())
+
+        print(tgt_e.is_cuda)
         tgt_e = self.positional_encoding(tgt_e)
 
+        print(tgt_e.is_cuda)
+
         tgt_mask = generate_square_subsequent_mask(tgt.size()[0])
+
+        print(tgt_mask.is_cuda)
         tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
+
+        print(tgt_mask.is_cuda)
         tgt_mask = tgt_mask.expand(src.shape[1] * self.nhead, -1, -1)
+
+        print(tgt_mask.is_cuda)
 
         decoded_output = self.transformer_decoder(
             tgt_e, 
