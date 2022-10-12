@@ -31,3 +31,6 @@ def test_network(model, test_dataloader, network_config):
 
         num_test_examples = len(test_dataloader)
         print("Test Loss: {}, Test Accuracy: {}".format(loss_sum / num_test_examples, np.mean(accuracies)))
+
+def infer_program(model, room, query_object):
+    pass

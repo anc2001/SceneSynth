@@ -1,4 +1,5 @@
 from main.common import get_scene_list
+from main.common.utils import clear_folder
 from main.config import image_filepath, get_network_config
 from main.program_extraction import generate_most_restrictive_program, \
     execute_program_extraction, read_program_data, get_dataloaders
@@ -8,6 +9,7 @@ from main.network import ModelCore, loss_factory, \
 import matplotlib.image as img
 import os
 from argparse import ArgumentParser
+from tqdm import tqdm
 
 def parseArguments():
     parser = ArgumentParser()
@@ -18,19 +20,23 @@ def parseArguments():
     args = parser.parse_args()
     return args
 
-def program_execution():
-    def test(scene, query_object, program_name):
-        program = generate_most_restrictive_program(scene, query_object)
-        program.evaluate(scene, query_object)
-        program.print_program(program_name, scene, query_object)
-
+def program_execution(index):
+    room_folder = os.path.join(image_filepath, f"room_{index}")
+    if os.path.exists(room_folder):
+        clear_folder(room_folder)
+    else:
+        os.mkdir(room_folder)
+    
     scene_list = get_scene_list()
-    scene = scene_list[1]
+    scene = scene_list[index]
     scene_image = scene.convert_to_image()
-    img.imsave(os.path.join(image_filepath, "scene.png"), scene_image)
-    for i, (subscene, query_object) in enumerate(scene.permute()):
-        print(i)
-        test(subscene, query_object, str(i))
+    img.imsave(os.path.join(room_folder, "scene.png"), scene_image)
+    for i, (subscene, query_object) in tqdm(enumerate(scene.permute())):
+        program = generate_most_restrictive_program(subscene, query_object)
+        program.evaluate(subscene, query_object)
+        parent_folder = os.path.join(room_folder, str(i))
+        os.mkdir(parent_folder)
+        program.print_program(subscene, query_object, parent_folder)
 
 def train_test_model():
     train, test, val = get_dataloaders()
@@ -52,7 +58,7 @@ def main(args):
     elif args.mode == 'train':
         train_test_model()
     elif args.mode == 'program_execution':
-        program_execution()
+        program_execution(args.index)
 
 if __name__ == '__main__':
     args = parseArguments()

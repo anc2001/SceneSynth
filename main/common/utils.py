@@ -2,6 +2,7 @@ from main.config import grid_size, bin_width, num_angles
 
 import numpy as np
 from itertools import chain, combinations
+import os, shutil
 
 def powerset(iterable):
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
@@ -15,6 +16,17 @@ def raise_exception(type):
     if type == 'front_facing':
         print("Called Face on non front facing object")
         raise Exception()
+
+def clear_folder(folder):
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print('Failed to delete %s. Reason: %s' % (file_path, e))
 
 def normalize(vector):
     return vector / (np.linalg.norm(vector) + 1e-9)

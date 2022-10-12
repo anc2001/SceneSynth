@@ -146,10 +146,7 @@ class ProgramTree():
 
         return self.mask
 
-    def print_program(self, name, scene, query_object) -> None:
-        parent_folder = os.path.join(image_filepath, name)
-        os.makedirs(parent_folder, exist_ok=True)
-
+    def print_program(self, scene, query_object, parent_folder) -> None:
         fout = open(os.path.join(parent_folder, "program.txt"), "w")
         def print_program_helper(node, count):
             if node.is_leaf():
