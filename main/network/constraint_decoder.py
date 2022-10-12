@@ -23,7 +23,8 @@ class ConstraintDecoderModel(nn.Module):
         tgt_c,
         tgt_c_padding_mask, 
         src_e, 
-        src_padding_mask
+        src_padding_mask,
+        device
     ):
         structure_c_mask = tgt == structure_vocab_map['c']
         only_constraint_heads = decoded_output[structure_c_mask] # done with tgt
@@ -72,9 +73,9 @@ class ConstraintDecoderModel(nn.Module):
         direction_selections = self.direction_selection(direction_selection_input)
 
         return (
-            type_selections,
-            object_selections,
-            direction_selections
+            type_selections.to(device),
+            object_selections.to(device),
+            direction_selections.to(device)
         )
     
     # def inference(self, decoded_output, src_e, constraint_encoder_model):

@@ -52,12 +52,9 @@ class ModelCore(nn.Module):
 
     def forward(
         self, 
-        src, 
-        src_padding_mask, 
-        tgt,
-        tgt_padding_mask,  
-        tgt_c,
-        tgt_c_padding_mask,
+        src, src_padding_mask, 
+        tgt, tgt_padding_mask,  
+        tgt_c, tgt_c_padding_mask,
         device
     ):
         src_e = self.object_encoder(src)
@@ -85,14 +82,12 @@ class ModelCore(nn.Module):
         structure_preds = self.structure_head(decoded_output)
 
         constraint_preds = self.constraint_decoder(
-            decoded_output,
-            tgt,
-            tgt_c,
-            tgt_c_padding_mask, 
-            src_e, 
-            src_padding_mask
+            decoded_output, tgt,
+            tgt_c, tgt_c_padding_mask, 
+            src_e, src_padding_mask,
+            device
         )
-        return structure_preds, constraint_preds
+        return structure_preds.to(device), constraint_preds.to(device)
     
     # def inference(self, objects : list) -> Tensor:
     #     src_e = self.object_encoder(
