@@ -87,7 +87,7 @@ class ModelCore(nn.Module):
             src_e, src_padding_mask,
             device
         )
-        return structure_preds.to(device), constraint_preds.to(device)
+        return structure_preds, constraint_preds
     
     # def inference(self, objects : list) -> Tensor:
     #     src_e = self.object_encoder(
