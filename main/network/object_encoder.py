@@ -24,7 +24,7 @@ class ObjectEncoderModel(nn.Module):
         self.pe_pos_y = FixedPositionalEncoding(proj_dims=self.hidden_dim)
         self.pe_rot = FixedPositionalEncoding(proj_dims=self.hidden_dim)
 
-    def forward(self, objs, obj_key_padding_mask):
+    def forward(self, objs):
         # objs: [object_sequence_length, batch_size, num_obj_categories]
         # obj_key_padding_mask: [batch_size, object_sequence_length]
         # return: [object_sequence_length, batch_size, d_model]
@@ -41,6 +41,5 @@ class ObjectEncoderModel(nn.Module):
             ],
             dim = 2
         )
-        input[torch.transpose(obj_key_padding_mask, 0, 1)] = torch.zeros(1 + self.hidden_dim * 6) 
         out = self.fc(input)
         return out

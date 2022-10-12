@@ -59,7 +59,7 @@ class ModelCore(nn.Module):
         tgt_c,
         tgt_c_padding_mask
     ):
-        src_e = self.object_encoder(src, src_padding_mask)
+        src_e = self.object_encoder(src)
         src_e = self.positional_encoding(src_e)
 
         memory = self.transformer_encoder(
