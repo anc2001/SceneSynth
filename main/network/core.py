@@ -59,6 +59,13 @@ class ModelCore(nn.Module):
         tgt_c,
         tgt_c_padding_mask
     ):
+        print(src.is_cuda)
+        print(src_padding_mask.is_cuda)
+        print(tgt.is_cuda)
+        print(tgt_padding_mask.is_cuda)
+        print(tgt_c.is_cuda)
+        print(tgt_c_padding_mask.is_cuda)
+
         src_e = self.object_encoder(src)
         src_e = self.positional_encoding(src_e)
 
