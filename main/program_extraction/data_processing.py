@@ -18,30 +18,37 @@ def generate_most_restrictive_program(room, query_object):
     for reference_object_idx, reference_object in enumerate(room.objects):
         subprogram = ProgramTree()
 
-        distance, side = query_object.distance(reference_object)
+        distance, sides = query_object.distance(reference_object)
         distance_binned = np.digitize(distance, distance_bins)
 
         # Add possible locations 
-        if distance_binned == 2 and reference_object.holds_humans: # Close enough to be reachable, but not close enough to be attached
-            constraint = [
-                constraint_types_map['reachable_by_arm'],
-                query_object_idx,
-                reference_object_idx,
-                side
-            ]
-            subprogram.from_constraint(constraint) 
-        elif distance_binned == 1: # close enough to be attached 
-            constraint = [
-                constraint_types_map['attach'],
-                query_object_idx,
-                reference_object_idx,
-                side
-            ]
-            subprogram.from_constraint(constraint) 
+        for side in sides:
+            if distance_binned == 2 and reference_object.holds_humans: 
+                # Close enough to be reachable, but not close enough to be attached
+                constraint = [
+                    constraint_types_map['reachable_by_arm'],
+                    query_object_idx,
+                    reference_object_idx,
+                    side
+                ]
+                other_tree = ProgramTree()
+                other_tree.from_constraint(constraint)
+                subprogram.combine('or', other_tree)
+            elif distance_binned == 1: # close enough to be attached 
+                constraint = [
+                    constraint_types_map['attach'],
+                    query_object_idx,
+                    reference_object_idx,
+                    side
+                ]
+                other_tree = ProgramTree()
+                other_tree.from_constraint(constraint)
+                subprogram.combine('or', other_tree)
         
         object_semantic_fronts = reference_object.world_semantic_fronts()
         overlap = query_semantic_fronts.intersection(object_semantic_fronts)
-        if len(overlap) and len(subprogram): # Algin, object points in the same direction 
+        if len(overlap) and len(subprogram): 
+            # Algin, object points in the same direction 
             constraint = [
                 constraint_types_map['align'],
                 query_object_idx,
@@ -93,6 +100,20 @@ def generate_most_restrictive_program(room, query_object):
 
     return program
 
+def verify_program_validity(program, scene, query_object):
+    mask = program.evaluate(scene, query_object)
+    possible_placements = np.argwhere(mask == 1)
+    for x_and_y in possible_placements:
+        i = x_and_y[0]
+        j = x_and_y[1]
+        placement = scene.corner_pos
+        placement += np.array([i + 0.5, 0, j + 0.5]) * scene.cell_size
+        distance = np.linalg.norm(query_object.bbox.center - placement)
+        if distance < scene.cell_size:
+            return True
+
+    return False
+        
 def extract_programs(scene_list):
     xs = []
     ys = []

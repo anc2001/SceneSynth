@@ -21,6 +21,9 @@ def parseArguments():
     return args
 
 def program_execution(index):
+    if not os.path.exists(image_filepath):
+        os.mkdir(image_filepath)
+    
     room_folder = os.path.join(image_filepath, f"room_{index}")
     if os.path.exists(room_folder):
         clear_folder(room_folder)

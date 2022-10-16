@@ -189,25 +189,23 @@ class Furniture(SceneObject):
         returns distance, direction
         """        
         min_distance = np.finfo(np.float64).max 
-        direction_vector = np.zeros(3)
+        sides = set()
         for object_line_seg in self.line_segs:
-            for reference_line_seg in reference.line_segs:
+            for side, reference_line_seg in enumerate(reference.line_segs):
+                if reference.id == 0:
+                    side = utils.vector_angle_index(
+                        np.array([1,0,0]), 
+                        reference_line_seg.normal
+                    )
                 min_distance_tuple = object_line_seg.distance(reference_line_seg)
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
-                    if min_distance == 0:
-                        direction_vector = min_distance_tuple[1] - reference.center
-                    else:
-                        direction_vector = min_distance_tuple[1] - min_distance_tuple[2]
+                    sides = set()
+                    sides.add(side)
                 elif min_distance == min_distance_tuple[0]:
-                    if min_distance == 0:
-                        direction_vector += min_distance_tuple[1] - reference.center
-                    else:
-                        direction_vector += min_distance_tuple[1] - min_distance_tuple[2]       
+                    sides.add(side)     
         
-        direction_vector = utils.normalize(direction_vector)
-        side = reference.point_to_side(reference.center + direction_vector)
-        return min_distance, side
+        return min_distance, sides    
 
     def world_semantic_fronts(self):
         """
