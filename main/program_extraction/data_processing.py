@@ -2,7 +2,8 @@ from main.common.language import ProgramTree
 from main.config import \
     max_allowed_sideways_reach, max_attach_distance, \
     direction_types_map, constraint_types_map, \
-    data_filepath
+    data_filepath, grid_size
+from main.common.utils import angle_to_index
 
 import numpy as np
 from tqdm import tqdm
@@ -18,8 +19,18 @@ def generate_most_restrictive_program(room, query_object):
     for reference_object_idx, reference_object in enumerate(room.objects):
         subprogram = ProgramTree()
 
-        distance, sides = query_object.distance(reference_object)
-        distance_binned = np.digitize(distance, distance_bins)
+        if reference_object.id == 0:
+            # wall
+            distance, sides, accumulator = query_object.distance(reference_object, return_all = True)
+            distance_binned = np.digitize(distance, distance_bins)
+            other_possibilities = np.digitize(accumulator[:, 0], distance_bins)
+            other_possibilities = accumulator[other_possibilities == distance_binned]
+            for item in other_possibilities:
+                sides.add(item[1])
+            sides = sides.intersection(query_semantic_fronts)
+        else:
+            distance, sides = query_object.distance(reference_object)
+            distance_binned = np.digitize(distance, distance_bins)
 
         # Add possible locations 
         for side in sides:
@@ -49,16 +60,17 @@ def generate_most_restrictive_program(room, query_object):
         overlap = query_semantic_fronts.intersection(object_semantic_fronts)
         if len(overlap) and len(subprogram): 
             # Algin, object points in the same direction 
-            constraint = [
-                constraint_types_map['align'],
-                query_object_idx,
-                reference_object_idx,
-                direction_types_map['<pad>']
-            ]
-            
-            other_tree = ProgramTree()
-            other_tree.from_constraint(constraint)
-            subprogram.combine('and', other_tree)
+            if not reference_object.id == 0:
+                constraint = [
+                    constraint_types_map['align'],
+                    query_object_idx,
+                    reference_object_idx,
+                    direction_types_map['<pad>']
+                ]
+                
+                other_tree = ProgramTree()
+                other_tree.from_constraint(constraint)
+                subprogram.combine('and', other_tree)
         else: # face, not possible for query object to both face and be aligned with object 
             if query_object.front_facing:
                 front_facing_direction = list(query_semantic_fronts)[0]
@@ -79,39 +91,27 @@ def generate_most_restrictive_program(room, query_object):
                             other_tree = ProgramTree()
                             other_tree.from_constraint(constraint)
                             subprogram.combine('and', other_tree)
-
-        
         if len(subprogram):
-            # Constrict possible locations and orientations to match this subprogram 
-            if len(program): # take this subprogram, and it with the final output 
-                program.combine('and', subprogram)
-            else:
-                program = subprogram
-
-    # If program is empty (align, wall) -> place anywhere in any orientation 
-    if not len(program):
-        constraint = [
-            constraint_types_map['align'],
-            query_object_idx,
-            0,
-            direction_types_map['<pad>']
-        ]
-        program.from_constraint(constraint)
-
+            program.combine('and', subprogram)
+    
     return program
 
 def verify_program_validity(program, scene, query_object):
     mask = program.evaluate(scene, query_object)
-    possible_placements = np.argwhere(mask == 1)
-    for x_and_y in possible_placements:
-        i = x_and_y[0]
-        j = x_and_y[1]
-        placement = scene.corner_pos
-        placement += np.array([i + 0.5, 0, j + 0.5]) * scene.cell_size
-        distance = np.linalg.norm(query_object.bbox.center - placement)
-        if distance < scene.cell_size:
-            return True
-
+    valid_orientation = angle_to_index(query_object.bbox.rot)
+    valid_placement = ((query_object.bbox.center - scene.corner_pos) / scene.cell_size).astype(int)
+    x_range = np.clip(
+        np.arange(valid_placement[0] - 3, valid_placement[0] + 3), 
+        0, grid_size
+    )
+    y_range = np.clip(
+        np.arange(valid_placement[2] - 3, valid_placement[2] + 3),
+        0, grid_size
+    )
+    for i in x_range:
+        for j in y_range:
+            if mask[valid_orientation, i, j]:
+                return True
     return False
         
 def extract_programs(scene_list):
@@ -120,18 +120,19 @@ def extract_programs(scene_list):
     for scene in tqdm(scene_list):
         for subscene, query_object in scene.permute():
             program = generate_most_restrictive_program(subscene, query_object)
-            # Convert scene to object list and program to structures + constraints
-            program_tokens = program.to_tokens()
-            query_object_vector = query_object.vectorize(subscene.objects[0])
-            query_object_vector[0, 4] = 0
-            query_object_vector[0, 5] = 0
-            subscene_vector = np.append(
-                subscene.vectorize(),
-                query_object_vector,
-                axis = 0
-            )
-            xs.append(subscene_vector)
-            ys.append(program_tokens)
+            if verify_program_validity(program, subscene, query_object):
+                # Convert scene to object list and program to structures + constraints
+                program_tokens = program.to_tokens()
+                query_object_vector = query_object.vectorize(subscene.objects[0])
+                query_object_vector[0, 4] = 0
+                query_object_vector[0, 5] = 0
+                subscene_vector = np.append(
+                    subscene.vectorize(),
+                    query_object_vector,
+                    axis = 0
+                )
+                xs.append(subscene_vector)
+                ys.append(program_tokens)
     return xs, ys
 
 def write_program_data(xs, ys):

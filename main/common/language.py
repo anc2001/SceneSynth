@@ -34,16 +34,13 @@ class Node():
 
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D array representing the binary mask of all possible object placements in the room
-        name = str(len(self))
         if self.type == 'leaf':
             self.mask = solve_constraint(self.constraint, scene, query_object)
-            name = name + "_" + constraint_types[self.constraint[0]]
         else:
             mask1 = self.left.evaluate(scene, query_object)
             mask2 = self.right.evaluate(scene, query_object)
             csg_operator = np.logical_and if self.type == 'and' else np.logical_or
             self.mask = csg_operator(mask1, mask2)
-            name = name + "_" + self.type
 
         return self.mask
 
@@ -138,9 +135,7 @@ class ProgramTree():
 
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D mask that can be used for evaluation 
-        mask_4d = self.root.evaluate(scene, query_object)
-        # Collapse 4D mask into 3D mask and ensure placement validity inside the room 
-        mask_3d = collapse_mask(mask_4d)
+        mask_3d = self.root.evaluate(scene, query_object)
         ensure_placement_validity(mask_3d, scene, query_object)
         self.mask = mask_3d
 
@@ -180,21 +175,21 @@ class ProgramTree():
             image
         )
 
-        scene_mask = scene.convert_to_mask()
-        scene_mask = ~scene_mask.astype(bool)
-        mask_image = np.repeat(                
-            np.expand_dims(
-                scene_mask, 
-                axis = 2
-            ),
-            3,
-            axis = 2
-        )
-        mask_image = np.rot90(mask_image).astype(float)
-        img.imsave(
-            os.path.join(parent_folder, 'scene_mask.png'), 
-            mask_image
-        )
+        # scene_mask = scene.convert_to_mask()
+        # scene_mask = ~scene_mask.astype(bool)
+        # mask_image = np.repeat(                
+        #     np.expand_dims(
+        #         scene_mask, 
+        #         axis = 2
+        #     ),
+        #     3,
+        #     axis = 2
+        # )
+        # mask_image = np.rot90(mask_image).astype(float)
+        # img.imsave(
+        #     os.path.join(parent_folder, 'scene_mask.png'), 
+        #     mask_image
+        # )
 
         image = np.zeros((grid_size, grid_size, 3))
         query_object.write_to_image(scene, image, normalize= True)

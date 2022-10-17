@@ -3,7 +3,7 @@ from main.network.object_encoder import ObjectEncoderModel
 from main.network.constraint_decoder import ConstraintDecoderModel
 from main.network.utils import PositionalEncoding, generate_square_subsequent_mask
 from main.config import \
-    constraint_types, object_types, direction_types,\
+    object_types, \
     structure_vocab, structure_vocab_map, \
     constraint_types_map
 

@@ -2,7 +2,8 @@ from main.common import get_scene_list
 from main.common.utils import clear_folder
 from main.config import image_filepath, get_network_config
 from main.program_extraction import generate_most_restrictive_program, \
-    execute_program_extraction, read_program_data, get_dataloaders
+    execute_program_extraction, read_program_data, get_dataloaders, \
+    verify_program_validity
 from main.network import ModelCore, loss_factory, \
     train_network, test_network
 
@@ -36,6 +37,8 @@ def program_execution(index):
     img.imsave(os.path.join(room_folder, "scene.png"), scene_image)
     for i, (subscene, query_object) in tqdm(enumerate(scene.permute())):
         program = generate_most_restrictive_program(subscene, query_object)
+        if verify_program_validity(program, subscene, query_object):
+            print(f"verified: {i}")
         program.evaluate(subscene, query_object)
         parent_folder = os.path.join(room_folder, str(i))
         os.mkdir(parent_folder)

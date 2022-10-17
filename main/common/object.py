@@ -181,15 +181,16 @@ class Furniture(SceneObject):
             triangle = self.bbox.vertices[face]
             utils.write_triangle_to_mask(triangle, scene, mask)
 
-    def distance(self, reference : SceneObject):
+    def distance(self, reference : SceneObject, return_all=False):
         """
         Calculates the minimum distance between the this and the given object 
         Distance value of 0 means that the two objects intersect or overlap 
 
         returns distance, direction
         """        
-        min_distance = np.finfo(np.float64).max 
+        min_distance = np.finfo(np.float64).max
         sides = set()
+        accumulator = []
         for object_line_seg in self.line_segs:
             for side, reference_line_seg in enumerate(reference.line_segs):
                 if reference.id == 0:
@@ -198,14 +199,18 @@ class Furniture(SceneObject):
                         reference_line_seg.normal
                     )
                 min_distance_tuple = object_line_seg.distance(reference_line_seg)
+                accumulator.append([min_distance_tuple[0], side])
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
                     sides = set()
                     sides.add(side)
                 elif min_distance == min_distance_tuple[0]:
-                    sides.add(side)     
+                    sides.add(side)   
         
-        return min_distance, sides    
+        if return_all:
+            return min_distance, sides, np.array(accumulator)
+        else:
+            return min_distance, sides
 
     def world_semantic_fronts(self):
         """
