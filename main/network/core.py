@@ -89,39 +89,34 @@ class ModelCore(nn.Module):
         )
         return structure_preds, constraint_preds
     
-    # def inference(self, objects : list) -> Tensor:
-    #     src_e = self.object_encoder(
-    #         torch.unsqueeze(torch.tensor(objects).float(), 1), 
-    #         torch.zeros(1, len(objects)).bool()
-    #     )
-    #     memory = self.transformer_encoder(src_e)
-        
-    #     tgt = torch.tensor([[[4, 0, 0, 0]]]).float()
-    #     tgt_e = self.constraint_encoder(
-    #         tgt, 
-    #         torch.zeros(1, 1).bool(),
-    #         src_e
-    #     )
-    #     tgt_e = self.positional_encoding(tgt_e)
-    #     while len(tgt) < 10:
-    #         decoded_output = self.transformer_decoder(
-    #             tgt_e, 
-    #             memory,
-    #         )
-    #         constraint = self.program_line_decoder.inference(decoded_output, src_e, self.constraint_encoder)
-    #         if constraint[0] == 5:
-    #             break # End of sequence symbol detected 
-    #         tgt = torch.cat([tgt, torch.tensor([[constraint]])], dim=0)
-    #         tgt_e = self.constraint_encoder(
-    #             tgt,
-    #             torch.zeros(1, len(tgt)).bool(),
-    #             src_e
-    #         )
-    #         tgt_e = self.positional_encoding(tgt_e)
-        
-    #     tgt = torch.cat([tgt, torch.tensor([[[5, 0, 0, 0]]])], dim=0)
-    #     return tgt 
-    
+    def infer(self, src, device):
+        src_e = self.object_encoder(src)
+        src_e = self.positional_encoding(src_e)
+
+        memory = self.transformer_encoder(src_e)
+
+        # First predict structure
+        tgt = torch.tensor([[structure_vocab_map['<sos>']]]).to(device)
+        tgt_e = self.structure_embedding(tgt.int())
+        tgt_e = self.positional_encoding(tgt_e)
+
+        while len(tgt) < 50:
+            decoded_output = self.transformer_decoder(tgt_e, memory)
+            predicted_token = torch.argmax(self.structure_head(decoded_output[-1]))
+            if predicted_token == structure_vocab_map['<eos>']:
+                break
+            else:
+                tgt = torch.cat([tgt, [predicted_token]])
+            
+            tgt_e = self.structure_embedding(tgt.int())
+            tgt_e = self.positional_encoding(tgt_e)
+
+        # Then predict the constraints 
+        structure_preds = self.transformer_decoder(tgt_e, memory)
+        constraints = self.constraint_decoder.infer(structure_preds, tgt, src_e, device)
+
+        return tgt[1:-1].toList(), constraints.toList()
+
     def loss(
         self, 
         structure_preds, constraint_preds, 
@@ -133,10 +128,7 @@ class ModelCore(nn.Module):
         structure_loss = self.loss_fnc(x_structure, y_structure.long())
         # mask padding from structure loss 
         padding_mask = ~torch.flatten(
-            torch.logical_or(
-                tgt == structure_vocab_map['<pad>'],
-                tgt == structure_vocab_map['<eos>'],
-            ),
+            tgt == structure_vocab_map['<pad>'],
             start_dim = 0,
             end_dim = 1
         )
@@ -155,7 +147,7 @@ class ModelCore(nn.Module):
         )
         directions_loss *= directions_mask
 
-        return torch.sum(structure_loss) + torch.sum(types_loss + objects_loss + directions_loss)
+        return torch.mean(structure_loss) + torch.mean(types_loss + objects_loss + directions_loss)
     
     def accuracy_fnc(
         self, 
@@ -169,10 +161,7 @@ class ModelCore(nn.Module):
         n_c = type_selections.size(0)
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
         padding_mask = ~torch.flatten(
-            torch.logical_or(
-                tgt == structure_vocab_map['<pad>'],
-                tgt == structure_vocab_map['<eos>'],
-            ),
+            tgt == structure_vocab_map['<pad>'],
             start_dim = 0,
             end_dim = 1
         )

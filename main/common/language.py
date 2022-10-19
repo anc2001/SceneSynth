@@ -1,8 +1,8 @@
 from main.common.scene import Scene
 from main.common.object import Furniture
-from main.compiler import ensure_placement_validity, solve_constraint, \
-    convert_mask_to_image, \
-    collapse_mask
+from main.compiler import \
+    ensure_placement_validity, solve_constraint, \
+    convert_mask_to_image
 from main.common.utils import raise_exception
 
 from main.config import constraint_types, image_filepath, grid_size

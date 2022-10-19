@@ -1,5 +1,5 @@
-from main.program_extraction.data_processing import read_program_data
 from main.config import get_network_config, structure_vocab_map
+from main.program_extraction.data_processing import read_program_data
 
 import torch
 from torch.utils.data import Dataset
@@ -11,48 +11,28 @@ from torch.utils.data import DataLoader
 network_config = get_network_config()
 device = network_config['device']
 
-def get_dataloaders():
+def get_dataset():
+    data = read_program_data()
+    dataset = ProgramDataset(data)
+    return dataset
+
+def get_dataloader(dataset):
     # Return the dataloader
-
-    dataset = ProgramDataset()
-
-    train_size = int(0.8 * len(dataset))
-    validation_size = int(0.1 * len(dataset))
-    test_size = len(dataset) - train_size - validation_size
-    train_dataset, test_dataset, validation_dataset = torch.utils.data.random_split(
+    dataloader = DataLoader(
         dataset, 
-        [train_size, test_size, validation_size]
-    )
-
-    train_dataloader = DataLoader(
-        train_dataset, 
         batch_size = network_config['Training']['batch_size'], 
         shuffle = True, 
         collate_fn = dataset.collate_fn
     )
 
-    test_dataloader = DataLoader(
-        test_dataset,
-        batch_size = network_config['Training']['batch_size'],
-        shuffle = True,
-        collate_fn = dataset.collate_fn
-    )
-
-    validation_dataloader = DataLoader(
-        validation_dataset,
-        batch_size = network_config['Training']['batch_size'],
-        shuffle = True,
-        collate_fn = dataset.collate_fn
-    )
-
-    return train_dataloader, test_dataloader, validation_dataloader
+    return dataloader
 
 class ProgramDataset(Dataset):
-    def __init__(self):
+    def __init__(self, data):
         # Load data
-        data = read_program_data()
         self.x = data['xs']
         self.y = data['ys']
+        self.x_base = data['x_base']
 
     def __len__(self):
         # Return the length of the dataset

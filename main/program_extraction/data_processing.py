@@ -117,6 +117,7 @@ def verify_program_validity(program, scene, query_object):
 def extract_programs(scene_list):
     xs = []
     ys = []
+    x_base = []
     for scene in tqdm(scene_list):
         for subscene, query_object in scene.permute():
             program = generate_most_restrictive_program(subscene, query_object)
@@ -133,12 +134,15 @@ def extract_programs(scene_list):
                 )
                 xs.append(subscene_vector)
                 ys.append(program_tokens)
-    return xs, ys
+                x_base.append((subscene, query_object))
+    return xs, ys, x_base
 
-def write_program_data(xs, ys):
+def write_program_data(xs, ys, x_base):
     program_data = dict()
     program_data['xs'] = xs
     program_data['ys'] = ys
+    program_data['x_base'] = x_base
+
     filepath = os.path.join(data_filepath, 'program_data.pkl')
     with open(filepath, 'wb') as handle:
         pickle.dump(program_data, handle, protocol=pickle.HIGHEST_PROTOCOL)

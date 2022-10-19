@@ -1,11 +1,11 @@
 from main.common import get_scene_list
 from main.common.utils import clear_folder
-from main.config import image_filepath, get_network_config
+from main.config import image_filepath
 from main.program_extraction import generate_most_restrictive_program, \
-    execute_program_extraction, read_program_data, get_dataloaders, \
+    execute_program_extraction, \
     verify_program_validity
-from main.network import ModelCore, loss_factory, \
-    train_network, test_network
+
+from main.network import do_everything
 
 import matplotlib.image as img
 import os
@@ -15,7 +15,7 @@ from tqdm import tqdm
 def parseArguments():
     parser = ArgumentParser()
     parser.add_argument('-m', '--mode', type=str, required=True, 
-        help="mode to run [extract_programs, train, program_execution]")
+        help="mode to run [program_extraction, train, program_execution]")
     parser.add_argument('-i', '--index', type=int, default=0,
         help="room index to run program_execution on")
     args = parser.parse_args()
@@ -44,27 +44,15 @@ def program_execution(index):
         os.mkdir(parent_folder)
         program.print_program(subscene, query_object, parent_folder)
 
-def train_test_model():
-    train, test, val = get_dataloaders()
-    network_config = get_network_config()
-    device = network_config['device']
-    model = ModelCore(
-        d_model = network_config['Architecture']['d_model'],
-        nhead = network_config['Architecture']['nhead'],
-        num_layers= network_config['Architecture']['d_model'],
-        loss_func=loss_factory(network_config)
-    )
-    model.to(device)
-    train_network(model, train, val, network_config)
-    test_network(model, test, network_config)
-
 def main(args):
-    if args.mode == 'extract_programs':
+    if args.mode == 'program_extraction':
         execute_program_extraction()
     elif args.mode == 'train':
-        train_test_model()
+        do_everything()
     elif args.mode == 'program_execution':
         program_execution(args.index)
+    else:
+        print("Not a recognized mode!")
 
 if __name__ == '__main__':
     args = parseArguments()
