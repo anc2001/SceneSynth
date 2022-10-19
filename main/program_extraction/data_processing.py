@@ -94,6 +94,14 @@ def generate_most_restrictive_program(room, query_object):
         if len(subprogram):
             program.combine('and', subprogram)
     
+    if not len(subprogram):
+        constraint = [
+            constraint_types_map['align'],
+            query_object_idx,
+            0,
+            direction_types_map['<pad>']
+        ]
+        program.from_constraint(constraint)
     return program
 
 def verify_program_validity(program, scene, query_object):
@@ -115,33 +123,19 @@ def verify_program_validity(program, scene, query_object):
     return False
         
 def extract_programs(scene_list):
-    xs = []
-    ys = []
-    x_base = []
-    for scene in tqdm(scene_list):
-        for subscene, query_object in scene.permute():
-            program = generate_most_restrictive_program(subscene, query_object)
-            if verify_program_validity(program, subscene, query_object):
-                # Convert scene to object list and program to structures + constraints
-                program_tokens = program.to_tokens()
-                query_object_vector = query_object.vectorize(subscene.objects[0])
-                query_object_vector[0, 4] = 0
-                query_object_vector[0, 5] = 0
-                subscene_vector = np.append(
-                    subscene.vectorize(),
-                    query_object_vector,
-                    axis = 0
-                )
-                xs.append(subscene_vector)
-                ys.append(program_tokens)
-                x_base.append((subscene, query_object))
-    return xs, ys, x_base
+    xs = [] # (scene, query_object) pairs
+    ys = [] # programs 
+    for scene in tqdm(scene_list[:10]):
+        for scene, query_object in scene.permute():
+            program = generate_most_restrictive_program(scene, query_object)
+            xs.append((scene, query_object))
+            ys.append(program.to_tokens())
+    return xs, ys
 
-def write_program_data(xs, ys, x_base):
+def write_program_data(xs, ys):
     program_data = dict()
     program_data['xs'] = xs
     program_data['ys'] = ys
-    program_data['x_base'] = x_base
 
     filepath = os.path.join(data_filepath, 'program_data.pkl')
     with open(filepath, 'wb') as handle:

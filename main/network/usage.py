@@ -1,4 +1,5 @@
 from main.common.language import ProgramTree
+from main.common.utils import vectorize_scene
 from main.network.utils import optimizer_factory
 from main.program_extraction.dataset import get_dataloader
 
@@ -7,11 +8,20 @@ from tqdm import tqdm
 import numpy as np
 import os
 
-def get_network_feedback(model, dataset, parent_folder):
+def get_network_feedback(model, dataset, parent_folder, device):
+    indices = np.array(dataset.indices)
+    np.random.shuffle(indices)
+    program_dataset = dataset.dataset
+    folder_to_write = os.path.join(parent_folder, valid_counter)
+
+    for idx in indices:
+        (scene, query_object), ground_truth_program = program_dataset[idx]
+        infer_program(model, scene, query_object, folder_to_write, device)
+    
     indices = np.random.shuffle(np.arange(len(dataset)))
     invalid_counter = 0
     valid_counter = 0
-    folder_to_write = os.path.join(parent_folder, valid_counter)
+    
     if not os.path.exists(folder_to_write):
         os.mkdir(folder_to_write)
     
@@ -28,34 +38,24 @@ def get_network_feedback(model, dataset, parent_folder):
             break
     print(f"A total of {invalid_counter} invalid programs were rejected to produce {valid_counter + 1} programs")
 
-def infer_program(model, scene, query_object, parent_folder):
+def infer_program(model, scene, query_object, parent_folder, device):
     model.eval()
     with torch.no_grad():
-        query_object_vector = query_object.vectorize(scene.objects[0])
-        query_object_vector[0, 4] = 0
-        query_object_vector[0, 5] = 0
         scene_vector = np.expand_dims(
-                np.append(
-                scene.vectorize(),
-                query_object_vector,
-                axis = 0
-            ),
-            axis = 0 # For batch
+            vectorize_scene(scene, query_object),
+            axis = 1
         )
-        structure, constraints = model.infer(scene_vector)
+        scene_vector = torch.tensor(scene_vector).to(device)
+        structure, constraints = model.infer(scene_vector, device)
         tokens = {
             'structure' : structure,
             'constraints' : constraints
         }
 
-        try:
-            program = ProgramTree()
-            program.from_tokens(tokens)
-            program.print_program(scene, query_object, parent_folder)
-            return True
-        except:
-            print("Program invalid!")
-            return False
+        program = ProgramTree()
+        program.from_tokens(tokens)
+        program.print_program(scene, query_object, parent_folder)
+        return True
             
 def train_test_network_with_feedback(
         model, 
@@ -73,7 +73,7 @@ def train_test_network_with_feedback(
     validation_dataloader = get_dataloader(validation_dataset)
 
     for epoch in range(network_config['Training']['epochs']):
-        epoch_folder = os.path.join(parent_folder, epoch)
+        epoch_folder = os.path.join(parent_folder, str(epoch))
         if not os.path.exists(epoch_folder):
             os.mkdir(epoch_folder)
         
@@ -116,19 +116,19 @@ def train_test_network_with_feedback(
         train_folder = os.path.join(epoch_folder, "train")    
         if not os.path.exists(train_folder):
             os.mkdir(train_folder)
-        get_network_feedback(model, train_dataset, train_folder)
+        get_network_feedback(model, train_dataset, train_folder, device)
 
         validation_folder = os.path.join(epoch_folder, "validation")    
         if not os.path.exists(validation_folder):
             os.mkdir(validation_folder) 
         evaluate_network(model, validation_dataloader, network_config, "Validation")
-        get_network_feedback(model, validation_dataset, validation_folder)
+        get_network_feedback(model, validation_dataset, validation_folder, device)
 
     test_folder = os.path.join(parent_folder, "validation")    
     if not os.path.exists(test_folder):
         os.mkdir(test_folder)   
     evaluate_network(model, test_dataloader, network_config, "Test")
-    get_network_feedback(model, test_dataset, test_folder)
+    get_network_feedback(model, test_dataset, test_folder, device)
 
 def evaluate_network(model, test_dataloader, network_config, evaluation_type):
     device = network_config['device']

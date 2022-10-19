@@ -5,11 +5,17 @@ from main.compiler import \
     convert_mask_to_image
 from main.common.utils import raise_exception
 
-from main.config import constraint_types, image_filepath, grid_size
+from main.config import grid_size
 
 import matplotlib.image as img
 import numpy as np
 import os
+
+def valid_next_structure_token(partial_sequence):
+    pass
+
+def valid_next_constraint_token(partial_constraint):
+    pass
 
 class Node():
     """

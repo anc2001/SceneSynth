@@ -1,12 +1,22 @@
-from main.network.usage import evaluate_network, train_test_network_with_feedback
+from main.network.usage import evaluate_network, \
+    train_test_network_with_feedback, infer_program
 from main.network.utils import loss_factory, save_model, load_model
 from main.network.core import ModelCore
-from main.program_extraction.dataset import get_dataset
+from main.program_extraction.dataset import get_dataset, get_dataloader
 from main.config import get_network_config, data_filepath
 from main.common.utils import clear_folder
 
 import torch
 import os
+import numpy as np
+
+def test_infer_program(model, dataset, folder, device):
+    indices = np.array(dataset.indices)
+    np.random.shuffle(indices)
+    program_dataset = dataset.dataset
+    for idx in indices:
+        (scene, query_object), _ = program_dataset[idx]
+        infer_program(model, scene, query_object, folder, device)
 
 def do_everything():
     dataset = get_dataset()
@@ -34,6 +44,7 @@ def do_everything():
     else:
         os.mkdir(parent_folder)
     
+    test_infer_program(model, train_dataset, parent_folder, device)
     train_test_network_with_feedback(
         model, 
         train_dataset, 

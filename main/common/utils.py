@@ -4,6 +4,18 @@ import numpy as np
 from itertools import chain, combinations
 import os, shutil
 
+def vectorize_scene(scene, query_object):
+    # Convert scene to object list and program to structures + constraints
+    query_object_vector = query_object.vectorize(scene.objects[0])
+    query_object_vector[0, 4] = 0
+    query_object_vector[0, 5] = 0
+    scene_vector = np.append(
+        scene.vectorize(),
+        query_object_vector,
+        axis = 0
+    )
+    return scene_vector
+
 def powerset(iterable):
     "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
     s = list(iterable)

@@ -89,7 +89,7 @@ class ModelCore(nn.Module):
         )
         return structure_preds, constraint_preds
     
-    def infer(self, src, device):
+    def infer(self, src, device, guarantee_program=False):
         src_e = self.object_encoder(src)
         src_e = self.positional_encoding(src_e)
 
@@ -102,7 +102,8 @@ class ModelCore(nn.Module):
 
         while len(tgt) < 50:
             decoded_output = self.transformer_decoder(tgt_e, memory)
-            predicted_token = torch.argmax(self.structure_head(decoded_output[-1]))
+            logits = self.structure_head(decoded_output[-1])
+            predicted_token = torch.argmax(logits)
             if predicted_token == structure_vocab_map['<eos>']:
                 break
             else:

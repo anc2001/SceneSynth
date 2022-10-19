@@ -41,5 +41,5 @@ class ObjectEncoderModel(nn.Module):
             ],
             dim = 2
         )
-        out = self.fc(input)
+        out = self.fc(input.float())
         return out
