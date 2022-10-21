@@ -82,32 +82,39 @@ class ConstraintDecoderModel(nn.Module):
     def infer(self, decoded_output, tgt, src_e, device):
         structure_c_mask = tgt == structure_vocab_map['c']
         only_constraint_heads = decoded_output[structure_c_mask] # done with tgt
+        n_c = only_constraint_heads.size(0)
         types = torch.argmax(
             self.constraint_type_selection(only_constraint_heads),
-            dims = 1
+            dim = 1
         )
 
-        query_e = src_e[-1]
+        query_e = src_e[-1].expand(n_c, -1)
         type_e = self.type_embedding(types.int())
         object_selection_input = torch.cat(
             [only_constraint_heads, type_e, query_e],
             dim = 1
         )
         pointer_embeddings = self.object_selection(object_selection_input)
+
+        # Vectorize this
         object_selections = []
         for pointer_embedding in pointer_embeddings:
             object_selection = torch.argmax(
                 torch.tensordot(src_e, pointer_embedding, dims = 1)
             ).item()
             object_selections.append(object_selection)
-        
-        r_e = src_e[object_selections]
+        object_selections = torch.Tensor(object_selections).long().to(device)
+
+        r_e = torch.squeeze(src_e, dim = 1)[object_selections.long()]
         direction_selection_input = torch.cat([object_selection_input, r_e], dim = 1)
         direction_selections = torch.argmax(
             self.direction_selection(direction_selection_input),
-            dims = 1
+            dim = 1
         )
-        padding_directions = torch.full(len(direction_selections), direction_types_map['<pad>']).to(device)
+        padding_directions = torch.full(
+            direction_selections.size(), 
+            direction_types_map['<pad>']
+        ).to(device)
 
         is_location_constraint = torch.logical_or(
             types == constraint_types_map['attach'],
@@ -120,10 +127,15 @@ class ConstraintDecoderModel(nn.Module):
             padding_directions
         )
 
-        query_object_indices = torch.full(len(types), len(src_e)).to(device)
+        query_object_indices = torch.full(types.size(), len(src_e) - 1).to(device)
         constraints = torch.cat(
-            [types, query_object_indices, object_selections, direction_selections],
-            dims = 1
+            [
+                torch.unsqueeze(types, dim = 1),
+                torch.unsqueeze(query_object_indices, dim = 1),
+                torch.unsqueeze(object_selections, dim = 1),
+                torch.unsqueeze(direction_selections, dim = 1)
+            ],
+            dim = 1
         )
 
         return constraints.to(device)

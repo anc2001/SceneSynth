@@ -103,11 +103,12 @@ class ModelCore(nn.Module):
         while len(tgt) < 50:
             decoded_output = self.transformer_decoder(tgt_e, memory)
             logits = self.structure_head(decoded_output[-1])
-            predicted_token = torch.argmax(logits)
+            predicted_token = torch.argmax(logits).item()
             if predicted_token == structure_vocab_map['<eos>']:
                 break
             else:
-                tgt = torch.cat([tgt, [predicted_token]])
+                to_add = torch.tensor([[predicted_token]]).to(device)
+                tgt = torch.cat([tgt, to_add], dim = 0)
             
             tgt_e = self.structure_embedding(tgt.int())
             tgt_e = self.positional_encoding(tgt_e)
@@ -116,7 +117,8 @@ class ModelCore(nn.Module):
         structure_preds = self.transformer_decoder(tgt_e, memory)
         constraints = self.constraint_decoder.infer(structure_preds, tgt, src_e, device)
 
-        return tgt[1:-1].toList(), constraints.toList()
+        program_structure = [structure_vocab[index] for index in tgt[1:]]
+        return program_structure, constraints.tolist()
 
     def loss(
         self, 
