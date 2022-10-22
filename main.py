@@ -4,6 +4,7 @@ from main.config import image_filepath
 from main.program_extraction import generate_most_restrictive_program, \
     execute_program_extraction, \
     verify_program_validity
+from main.common.language import verify_program
 
 from main.network import do_everything
 
@@ -11,6 +12,7 @@ import matplotlib.image as img
 import os
 from argparse import ArgumentParser
 from tqdm import tqdm
+import numpy as np 
 
 def parseArguments():
     parser = ArgumentParser()
@@ -57,3 +59,11 @@ def main(args):
 if __name__ == '__main__':
     args = parseArguments()
     main(args)
+    # structure = np.array(['or', 'c', '<pad>', 'c'])
+    # c = [[0, 1, 0, 3], [0, 1, 0, 3], [0, 1, 0, 3], [0, 1, 0, 3]]
+    # tokens = {
+    #     'structure' : structure,
+    #     'constraints' : c
+    # }
+    # valid = verify_program(tokens, 1)
+    # print(valid)

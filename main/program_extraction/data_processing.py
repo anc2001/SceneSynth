@@ -4,6 +4,7 @@ from main.config import \
     direction_types_map, constraint_types_map, \
     data_filepath, grid_size
 from main.common.utils import angle_to_index
+from main.common.language import verify_program
 
 import numpy as np
 from tqdm import tqdm
@@ -125,11 +126,14 @@ def verify_program_validity(program, scene, query_object):
 def extract_programs(scene_list):
     xs = [] # (scene, query_object) pairs
     ys = [] # programs 
-    for scene in tqdm(scene_list[:10]):
+    for scene in tqdm(scene_list):
         for scene, query_object in scene.permute():
             program = generate_most_restrictive_program(scene, query_object)
+            program_tokens = program.to_tokens()
+            if not verify_program(program_tokens, len(scene.objects)):
+                print("Here!")
             xs.append((scene, query_object))
-            ys.append(program.to_tokens())
+            ys.append(program_tokens)
     return xs, ys
 
 def write_program_data(xs, ys):

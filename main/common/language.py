@@ -5,16 +5,52 @@ from main.compiler import \
     convert_mask_to_image
 from main.common.utils import raise_exception
 
-from main.config import grid_size
+from main.config import grid_size, \
+    direction_types_map, constraint_types_map
 
 import matplotlib.image as img
 import numpy as np
 import os
 
-def valid_next_structure_token(partial_sequence):
-    pass
+def verify_program(tokens, query_idx):
+    structure = np.array(tokens['structure'])
+    constraints = tokens['constraints']
+    if np.sum(structure == 'c') != len(constraints):
+        return False
+    for constraint in constraints:
+        type = constraint[0]
+        if not query_idx == constraint[1]:
+            print("Query index is invalid")
+            return False
+        if query_idx == constraint[2]:
+            print("Reference index is invalid")
+            return False
+        orientation_flag = type == constraint_types_map['align']
+        orientation_flag |= type == constraint_types_map['face']
+        direction_pad_flag = constraint[3] == direction_types_map['<pad>']
+        if orientation_flag != direction_pad_flag:
+            print("Type and directions don't match")
+            return False
+    
+    valid = True
+    def verify_tree(sequence):
+        if not len(sequence):
+            valid = False
+            return np.array([])
+        if sequence[0] == 'c':
+            return sequence[1:]
+        elif sequence[0] == 'or' or sequence[0] == 'and':
+            left_partial = verify_tree(sequence[1:])
+            right_partial = verify_tree(left_partial)
+            return right_partial
+        else:
+            valid = False
+            return np.array([])
+    
+    remaining_tokens = verify_tree(structure)
+    return not (len(remaining_tokens) or not valid)
 
-def valid_next_constraint_token(partial_constraint):
+def valid_next_structure_token(partial_sequence):
     pass
 
 class Node():
@@ -181,22 +217,6 @@ class ProgramTree():
             image
         )
 
-        # scene_mask = scene.convert_to_mask()
-        # scene_mask = ~scene_mask.astype(bool)
-        # mask_image = np.repeat(                
-        #     np.expand_dims(
-        #         scene_mask, 
-        #         axis = 2
-        #     ),
-        #     3,
-        #     axis = 2
-        # )
-        # mask_image = np.rot90(mask_image).astype(float)
-        # img.imsave(
-        #     os.path.join(parent_folder, 'scene_mask.png'), 
-        #     mask_image
-        # )
-
         image = np.zeros((grid_size, grid_size, 3))
         query_object.write_to_image(scene, image, normalize= True)
         image = np.rot90(image)
@@ -204,51 +224,3 @@ class ProgramTree():
             os.path.join(parent_folder, 'query_object.png'), 
             image
         )
-
-"""
-tokens to tree explanation 
-
-Example: 
-structure_sequence = np.array(['and', 'or', 'c', 'c', 'c'])
-constraints = [[0, 0, 1, 0], [0, 0, 1, 2], [3, 0, 1, 4]]
-
-constraint_reference_key (structure sequence idx -> constraint sequence idx) 
-= {2 : 0, 3 : 1, 4 : 2}
-
-'and'  <-
-
-structure: 'or', 'c', 'c', 'c'
-index_tracker = [1, 2, 3, 4]
-
-    'and'
-    /
-  'or' <-
-structure: 'c', 'c', 'c'
-index_tracker = [2, 3, 4]
-
-Evaluate the 'c' token using the constraint_reference_key (2 -> 0), constraint at index 0
-
-    'and'
-    /
-  'or'
-  /
-0 <-
-structure: 'c', 'c'
-index_tracker = [3, 4]
-
-return to the or node and generate tree based on the remaining sequence starting on right 
-    'and'
-    /
- 'or'  
- /  \
-0    1 <-
-structure: 'c'
-index_tracker = [4]
-
-Return to root 'and' node with this sequence 
-    'and'
-    /   \ 
- 'or'    2 
- /  \
-0    1 <-
-"""

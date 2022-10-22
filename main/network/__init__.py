@@ -10,13 +10,13 @@ import torch
 import os
 import numpy as np
 
-def test_infer_program(model, dataset, folder, device):
-    indices = np.array(dataset.indices)
-    np.random.shuffle(indices)
-    program_dataset = dataset.dataset
-    for idx in indices:
-        (scene, query_object), _ = program_dataset[idx]
-        infer_program(model, scene, query_object, folder, device)
+# def test_infer_program(model, dataset, folder, device):
+#     indices = np.array(dataset.indices)
+#     np.random.shuffle(indices)
+#     program_dataset = dataset.dataset
+#     for idx in indices:
+#         (scene, query_object), _ = program_dataset[idx]
+#         infer_program(model, scene, query_object, folder, device)
 
 def do_everything():
     dataset = get_dataset()
@@ -44,7 +44,6 @@ def do_everything():
     else:
         os.mkdir(parent_folder)
     
-    test_infer_program(model, train_dataset, parent_folder, device)
     train_test_network_with_feedback(
         model, 
         train_dataset, 
@@ -53,3 +52,6 @@ def do_everything():
         network_config, 
         parent_folder
     )
+
+    model_save = os.path.join(parent_folder, "model.pt")
+    save_model(model, model_save)

@@ -12,33 +12,24 @@ def get_network_feedback(model, dataset, parent_folder, device):
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
     program_dataset = dataset.dataset
-    folder_to_write = os.path.join(parent_folder, valid_counter)
 
-    for idx in indices:
-        (scene, query_object), ground_truth_program = program_dataset[idx]
-        infer_program(model, scene, query_object, folder_to_write, device)
-    
-    indices = np.random.shuffle(np.arange(len(dataset)))
-    invalid_counter = 0
-    valid_counter = 0
-    
-    if not os.path.exists(folder_to_write):
-        os.mkdir(folder_to_write)
-    
-    for i in indices:
-        x_base = dataset.x_base[i]
-        scene, query_object = x_base
-        if infer_program(model, scene, query_object, folder_to_write):
-            valid_counter += 1
-            folder_to_write = os.path.join(parent_folder, valid_counter)
+    folders_to_write = [os.path.join(parent_folder, str(i)) for i in range(5)]
+
+    for folder_to_write, idx in zip(folders_to_write, indices[:5]):
+        (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
+        if not os.path.exists(folder_to_write):
+            os.mkdir(folder_to_write)
+        inferred_tokens =  infer_program(model, scene, query_object, device)
+        # Is program valid 
+        program = ProgramTree()
+        if program_valid:
+            pass
         else:
-            invalid_counter += 1
-        
-        if valid_counter == 5:
-            break
-    print(f"A total of {invalid_counter} invalid programs were rejected to produce {valid_counter + 1} programs")
+            print("") # Need debugging here 
+            program.from_tokens(ground_truth_program_tokens)
+            program.print_program(scene, query_object, parent_folder)
 
-def infer_program(model, scene, query_object, parent_folder, device):
+def infer_program(model, scene, query_object, device):
     model.eval()
     with torch.no_grad():
         scene_vector = np.expand_dims(
@@ -52,9 +43,8 @@ def infer_program(model, scene, query_object, parent_folder, device):
             'constraints' : constraints
         }
 
-        program = ProgramTree()
-        program.from_tokens(tokens)
-        program.print_program(scene, query_object, parent_folder)
+        
+
         return True
             
 def train_test_network_with_feedback(
