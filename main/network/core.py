@@ -102,7 +102,7 @@ class ModelCore(nn.Module):
         # guarantee program 
         # Base mask with <sos>, <eos>, and <pad> masked out 
         num_spots_to_fill = 1
-        base_mask = torch.tensor([1, 1, 1, -float('inf'), -float('inf'), -float('inf')]).to(device)
+        base_mask = torch.tensor([1, 1, 1, 0, 0, 0]).to(device)
         while len(tgt) < 50:
             decoded_output = self.transformer_decoder(tgt_e, memory)
             logits = self.structure_head(decoded_output[-1])
@@ -138,7 +138,7 @@ class ModelCore(nn.Module):
             guarantee_program = guarantee_program
         )
 
-        program_structure = [structure_vocab[index] for index in tgt[1:]]
+        program_structure = [structure_vocab[index] for index in tgt[1:-1]]
         return program_structure, constraints.tolist()
     
     def loss(

@@ -22,7 +22,7 @@ def get_network_feedback(model, dataset, parent_folder, device):
         inferred_tokens = infer_program(model, scene, query_object, device)
         # Is program valid 
         program = ProgramTree()
-        if verify_program(program, len(scene.objects)):
+        if verify_program(inferred_tokens, len(scene.objects)):
             program.from_tokens(inferred_tokens)
             program.print_program(scene, query_object, parent_folder)
         else:
@@ -31,6 +31,7 @@ def get_network_feedback(model, dataset, parent_folder, device):
                 scene, query_object, device, 
                 guarantee_program=True
             )
+            verify_program(inferred_tokens, len(scene.objects)) # sanity check 
             program.from_tokens(inferred_tokens)
             program.print_program(scene, query_object, parent_folder)
 
@@ -69,10 +70,13 @@ def train_test_network_with_feedback(
     validation_dataloader = get_dataloader(validation_dataset)
 
     for epoch in range(network_config['Training']['epochs']):
-        epoch_folder = os.path.join(parent_folder, str(epoch))
-        if not os.path.exists(epoch_folder):
-            os.mkdir(epoch_folder)
-        
+        epoch_folder = os.path.join(parent_folder, "epoch_" + str(epoch))
+        train_folder = os.path.join(epoch_folder, "train")
+        validation_folder = os.path.join(epoch_folder, "validation")
+        for folder in [epoch_folder, train_folder, validation_folder]:
+            if not os.path.exists(folder):
+                os.mkdir(folder)
+
         epoch_loss = 0
         epoch_structure_accuracies = []
         epoch_type_accuracies = []
@@ -126,14 +130,7 @@ def train_test_network_with_feedback(
         print("Epoch: {}, Train Object Accuracy: {}".format(epoch, np.mean(epoch_object_accuracies)))
         print("Epoch: {}, Train Direction Accuracy: {}".format(epoch, np.mean(epoch_direction_accuracies)))
         
-        train_folder = os.path.join(epoch_folder, "train")    
-        if not os.path.exists(train_folder):
-            os.mkdir(train_folder)
         get_network_feedback(model, train_dataset, train_folder, device)
-
-        validation_folder = os.path.join(epoch_folder, "validation")    
-        if not os.path.exists(validation_folder):
-            os.mkdir(validation_folder) 
         evaluate_network(model, validation_dataloader, network_config, "Validation")
         get_network_feedback(model, validation_dataset, validation_folder, device)
 

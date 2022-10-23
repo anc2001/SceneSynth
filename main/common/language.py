@@ -32,22 +32,19 @@ def verify_program(tokens, query_idx):
             print("Type and directions don't match")
             return False
     
-    valid = True
     def verify_tree(sequence):
         if not len(sequence):
-            valid = False
-            return np.array([])
+            return np.array([]), False 
         if sequence[0] == 'c':
-            return sequence[1:]
+            return sequence[1:], True
         elif sequence[0] == 'or' or sequence[0] == 'and':
-            left_partial = verify_tree(sequence[1:])
-            right_partial = verify_tree(left_partial)
-            return right_partial
+            left_partial, validity_check = verify_tree(sequence[1:])
+            right_partial, validity_check = verify_tree(left_partial)
+            return right_partial, validity_check and validity_check
         else:
-            valid = False
-            return np.array([])
+            return np.array([]), False
     
-    remaining_tokens = verify_tree(structure)
+    remaining_tokens, valid = verify_tree(structure)
     if len(remaining_tokens):
         print("Too many tokens predicted")
     return not (len(remaining_tokens) or not valid)

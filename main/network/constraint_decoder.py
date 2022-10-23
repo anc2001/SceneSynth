@@ -101,7 +101,7 @@ class ConstraintDecoderModel(nn.Module):
         for pointer_embedding in pointer_embeddings:
             logits = torch.tensordot(src_e, pointer_embedding, dims = 1)
             if guarantee_program:
-                logits[-1] = -float('inf') # Mask out logits for query object index 
+                logits[-1] = 0 # Mask out logits for query object index 
             
             object_selection = torch.argmax(logits).item()
             object_selections.append(object_selection)
