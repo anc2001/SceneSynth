@@ -79,7 +79,7 @@ class ConstraintDecoderModel(nn.Module):
             direction_selections.to(device)
         )
     
-    def infer(self, decoded_output, tgt, src_e, device):
+    def infer(self, decoded_output, tgt, src_e, device, guarantee_program=False):
         structure_c_mask = tgt == structure_vocab_map['c']
         only_constraint_heads = decoded_output[structure_c_mask] # done with tgt
         n_c = only_constraint_heads.size(0)
@@ -99,9 +99,11 @@ class ConstraintDecoderModel(nn.Module):
         # Vectorize this
         object_selections = []
         for pointer_embedding in pointer_embeddings:
-            object_selection = torch.argmax(
-                torch.tensordot(src_e, pointer_embedding, dims = 1)
-            ).item()
+            logits = torch.tensordot(src_e, pointer_embedding, dims = 1)
+            if guarantee_program:
+                logits[-1] = -float('inf') # Mask out logits for query object index 
+            
+            object_selection = torch.argmax(logits).item()
             object_selections.append(object_selection)
         object_selections = torch.Tensor(object_selections).long().to(device)
 
@@ -111,21 +113,23 @@ class ConstraintDecoderModel(nn.Module):
             self.direction_selection(direction_selection_input),
             dim = 1
         )
-        padding_directions = torch.full(
-            direction_selections.size(), 
-            direction_types_map['<pad>']
-        ).to(device)
 
-        is_location_constraint = torch.logical_or(
-            types == constraint_types_map['attach'],
-            types == constraint_types_map['reachable_by_arm']
-        )
+        if guarantee_program:
+            padding_directions = torch.full(
+                direction_selections.size(), 
+                direction_types_map['<pad>']
+            ).to(device)
 
-        direction_selections = torch.where(
-            is_location_constraint, 
-            direction_selections, 
-            padding_directions
-        )
+            is_location_constraint = torch.logical_or(
+                types == constraint_types_map['attach'],
+                types == constraint_types_map['reachable_by_arm']
+            )
+
+            direction_selections = torch.where(
+                is_location_constraint, 
+                direction_selections, 
+                padding_directions
+            )
 
         query_object_indices = torch.full(types.size(), len(src_e) - 1).to(device)
         constraints = torch.cat(

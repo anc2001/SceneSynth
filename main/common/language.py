@@ -48,10 +48,9 @@ def verify_program(tokens, query_idx):
             return np.array([])
     
     remaining_tokens = verify_tree(structure)
+    if len(remaining_tokens):
+        print("Too many tokens predicted")
     return not (len(remaining_tokens) or not valid)
-
-def valid_next_structure_token(partial_sequence):
-    pass
 
 class Node():
     """
@@ -110,7 +109,6 @@ class ProgramTree():
             item : i for i, item in enumerate(index_tracker[structure == 'c'])
         }
         
-        # See below for code explanation 
         def parse(tree_structure, index_tracker):
             if len(tree_structure) == 0:
                 raise_exception('tree')

@@ -1,4 +1,4 @@
-from main.common.language import ProgramTree
+from main.common.language import ProgramTree, verify_program
 from main.common.utils import vectorize_scene
 from main.network.utils import optimizer_factory
 from main.program_extraction.dataset import get_dataloader
@@ -15,21 +15,26 @@ def get_network_feedback(model, dataset, parent_folder, device):
 
     folders_to_write = [os.path.join(parent_folder, str(i)) for i in range(5)]
 
-    for folder_to_write, idx in zip(folders_to_write, indices[:5]):
-        (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
+    for folder_to_write, idx in zip(folders_to_write, indices[:10]):
+        (scene, query_object), _ = program_dataset[idx]
         if not os.path.exists(folder_to_write):
             os.mkdir(folder_to_write)
-        inferred_tokens =  infer_program(model, scene, query_object, device)
+        inferred_tokens = infer_program(model, scene, query_object, device)
         # Is program valid 
         program = ProgramTree()
-        if program_valid:
-            pass
+        if verify_program(program, len(scene.objects)):
+            program.from_tokens(inferred_tokens)
+            program.print_program(scene, query_object, parent_folder)
         else:
-            print("") # Need debugging here 
-            program.from_tokens(ground_truth_program_tokens)
+            print("Invalid inferred program, running with guarantee") # Need debugging here 
+            inferred_tokens = infer_program(model, 
+                scene, query_object, device, 
+                guarantee_program=True
+            )
+            program.from_tokens(inferred_tokens)
             program.print_program(scene, query_object, parent_folder)
 
-def infer_program(model, scene, query_object, device):
+def infer_program(model, scene, query_object, device, guarantee_program=False):
     model.eval()
     with torch.no_grad():
         scene_vector = np.expand_dims(
@@ -37,15 +42,16 @@ def infer_program(model, scene, query_object, device):
             axis = 1
         )
         scene_vector = torch.tensor(scene_vector).to(device)
-        structure, constraints = model.infer(scene_vector, device)
+        structure, constraints = model.infer(
+            scene_vector, device, 
+            guarantee_program = guarantee_program
+        )
         tokens = {
             'structure' : structure,
             'constraints' : constraints
         }
 
-        
-
-        return True
+        return tokens
             
 def train_test_network_with_feedback(
         model, 
@@ -68,7 +74,10 @@ def train_test_network_with_feedback(
             os.mkdir(epoch_folder)
         
         epoch_loss = 0
-        epoch_accuracies = []
+        epoch_structure_accuracies = []
+        epoch_type_accuracies = []
+        epoch_object_accuracies = []
+        epoch_direction_accuracies = []
         model.train()
         print("Training epoch {}".format(epoch))
         for vals in tqdm(train_dataloader):
@@ -93,15 +102,29 @@ def train_test_network_with_feedback(
             # Update
             optimizer.step()
 
-            accuracy = model.accuracy_fnc(
+            (
+                structure_accuracy,
+                type_accuracy,
+                object_accuracy,
+                direction_accuracy
+            ) = model.accuracy_fnc(
                 structure_preds, tgt, 
                 constraint_preds, tgt_c, tgt_c_padding_mask
             )
-            epoch_accuracies.append(accuracy)
+
+            epoch_structure_accuracies.append(structure_accuracy)
+            epoch_type_accuracies.append(type_accuracy)
+            epoch_object_accuracies.append(object_accuracy)
+            epoch_direction_accuracies.append(direction_accuracy)
+            
             epoch_loss += loss.item()
 
         num_training_examples = len(train_dataloader)
-        print("Epoch: {}, Train Loss: {}, Train Accuracy: {}".format(epoch, epoch_loss / num_training_examples, np.mean(epoch_accuracies)))
+        print("Epoch: {}, Train Loss: {}".format(epoch, epoch_loss / num_training_examples))
+        print("Epoch: {}, Train Structure Accuracy: {}".format(epoch, np.mean(epoch_structure_accuracies)))
+        print("Epoch: {}, Train Type Accuracy: {}".format(epoch, np.mean(epoch_type_accuracies)))
+        print("Epoch: {}, Train Object Accuracy: {}".format(epoch, np.mean(epoch_object_accuracies)))
+        print("Epoch: {}, Train Direction Accuracy: {}".format(epoch, np.mean(epoch_direction_accuracies)))
         
         train_folder = os.path.join(epoch_folder, "train")    
         if not os.path.exists(train_folder):
@@ -125,7 +148,10 @@ def evaluate_network(model, test_dataloader, network_config, evaluation_type):
     model.eval()
     with torch.no_grad():
         loss_sum = 0
-        accuracies = []
+        structure_accuracies = []
+        type_accuracies = []
+        object_accuracies = []
+        direction_accuracies = []
         for vals in tqdm(test_dataloader):
             src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask = vals
             structure_preds, constraint_preds = model(
@@ -140,13 +166,25 @@ def evaluate_network(model, test_dataloader, network_config, evaluation_type):
                 tgt, tgt_padding_mask, 
                 tgt_c, tgt_c_padding_mask
             )
-            accuracy = model.accuracy_fnc(
+            (
+                structure_accuracy,
+                type_accuracy,
+                object_accuracy,
+                direction_accuracy
+            ) = model.accuracy_fnc(
                 structure_preds, tgt, 
                 constraint_preds, tgt_c, tgt_c_padding_mask
             )
-            accuracies.append(accuracy)
+            
+            structure_accuracies.append(structure_accuracy)
+            type_accuracies.append(type_accuracy)
+            object_accuracies.append(object_accuracy)
+            direction_accuracies.append(direction_accuracy)
             loss_sum += loss.item()
 
         num_test_examples = len(test_dataloader)
-        print("{} Loss: {}, {} Accuracy: {}".format(evaluation_type, loss_sum / num_test_examples, np.mean(accuracies)))
-        
+        print("{} Loss: {}".format(evaluation_type, loss_sum / num_test_examples))
+        print("{} Structure Accuracy: {}".format(evaluation_type, np.mean(structure_accuracies)))
+        print("{} Type Accuracy: {}".format(evaluation_type, np.mean(type_accuracies)))
+        print("{} Object Accuracy: {}".format(evaluation_type, np.mean(object_accuracies)))
+        print("{} Direction Accuracy: {}".format(evaluation_type, np.mean(direction_accuracies)))

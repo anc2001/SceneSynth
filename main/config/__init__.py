@@ -27,12 +27,12 @@ grid_size = 256
 bin_width = (2 * np.pi) / num_angles
 
 # Language stuff 
-structure_vocab = ['c', 'or', 'and', '<sos>', '<eos>', '<pad>']
+structure_vocab = np.array(['c', 'or', 'and', '<sos>', '<eos>', '<pad>'])
 structure_vocab_map = generate_idx_map(structure_vocab)
-constraint_types = ['attach', 'reachable_by_arm', 'align', 'face']
+constraint_types = np.array(['attach', 'reachable_by_arm', 'align', 'face'])
 constraint_types_map = generate_idx_map(constraint_types)
-direction_types = ['right', 'up', 'left', 'down', '<pad>']
+direction_types = np.array(['right', 'up', 'left', 'down', '<pad>'])
 direction_types_map = generate_idx_map(direction_types)
 
-object_types = ['wall', 'bed', 'wardrobe', 'nightstand', 'desk', 'chair']
+object_types = np.array(['wall', 'bed', 'wardrobe', 'nightstand', 'desk', 'chair'])
 object_types_map = generate_idx_map(object_types)
