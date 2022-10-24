@@ -103,16 +103,16 @@ class ModelCore(nn.Module):
         # Base mask with <sos>, <eos>, and <pad> masked out 
         program_max_length = 40
         num_spots_to_fill = 1
-        base_mask = torch.tensor([1, 1, 1, 0, 0, 0]).to(device)
+        base_mask = torch.tensor([0, 0, 0, 1, 1, 1]).bool().to(device)
         need_to_end = False
-        constraint_only_mask = torch.tensor([1, 0, 0, 0, 0, 0]).to(device)
+        constraint_only_mask = torch.tensor([0, 1, 1, 1, 1, 1]).bool().to(device)
         while len(tgt) < program_max_length:
             decoded_output = self.transformer_decoder(tgt_e, memory)
-            logits = self.structure_head(decoded_output[-1])
+            logits = torch.squeeze(self.structure_head(decoded_output[-1]))
             # guarantee program 
             if guarantee_program:
                 mask = constraint_only_mask if need_to_end else base_mask
-                logits *= mask
+                logits[mask] = -float('inf')
             
             predicted_token = torch.argmax(logits).item()
 

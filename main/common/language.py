@@ -178,44 +178,64 @@ class ProgramTree():
 
         return self.mask
 
-    def print_program(self, scene, query_object, parent_folder) -> None:
-        fout = open(os.path.join(parent_folder, "program.txt"), "w")
+    def print_program(
+            self, scene, query_object, parent_folder,
+            writer = None, base_tag = None, display_on_tensorboard = False
+        ):
+        program_text = []
         def print_program_helper(node, count):
             if node.is_leaf():
                 mask_name = f"mask_{count}"
-                fout.write(f"{mask_name} = {node.constraint}\n")
+                program_text.append(f"{mask_name} = {node.constraint}\n")
                 image = convert_mask_to_image(node.mask, scene)
-                img.imsave(
-                    os.path.join(parent_folder, mask_name + '.png'), 
-                    image
-                )
+                filepath = os.path.join(parent_folder, mask_name + '.png')
+                img.imsave(filepath, image)
+                
+                if display_on_tensorboard:
+                    tag = base_tag + mask_name
+                    writer.add_image(tag, image, dataformats='HWC')
                 return mask_name, count + 1
             else:
                 left_name, new_count = print_program_helper(node.left, count)
                 right_name, newer_count = print_program_helper(node.right, new_count)
                 mask_name = f"mask_{newer_count}"
-                fout.write(f"{mask_name} = {left_name} {node.type} {right_name}\n")
+                program_text.append(f"{mask_name} = {left_name} {node.type} {right_name}\n")
                 image = convert_mask_to_image(node.mask, scene)
-                img.imsave(
-                    os.path.join(parent_folder, mask_name + '.png'), 
-                    image
-                )
+                filepath = os.path.join(parent_folder, mask_name + '.png')
+                img.imsave(filepath, image)
+                
+                if display_on_tensorboard:
+                    tag = base_tag + mask_name
+                    writer.add_image(tag, image, dataformats='HWC')
                 return mask_name, newer_count + 1
 
         final_name, _ = print_program_helper(self.root, 0)
-        fout.write(f"return {final_name}\n")
+        program_text.append(f"return {final_name}\n")
+        program_string = ' '.join(program_text)
+
+        filepath = os.path.join(parent_folder, "program.txt")
+        fout = open(filepath, "w")
+        fout.write(program_string)
         fout.close()
 
+        if display_on_tensorboard:
+            tag = base_tag + "program"
+            writer.add_text(filepath, program_string)
+
         image = convert_mask_to_image(self.mask, scene)
-        img.imsave(
-            os.path.join(parent_folder, 'final.png'), 
-            image
-        )
+        filepath = os.path.join(parent_folder, 'final.png')
+        img.imsave(filepath, image)
+
+        if display_on_tensorboard:
+            tag = base_tag + "final"
+            writer.add_image(tag, image, dataformats='HWC')
 
         image = np.zeros((grid_size, grid_size, 3))
         query_object.write_to_image(scene, image, normalize= True)
         image = np.rot90(image)
-        img.imsave(
-            os.path.join(parent_folder, 'query_object.png'), 
-            image
-        )
+        filepath = os.path.join(parent_folder, 'query_object.png')
+        img.imsave(filepath, image)
+
+        if display_on_tensorboard:
+            tag = base_tag + "query_object"
+            writer.add_image(tag, image, dataformats='HWC')

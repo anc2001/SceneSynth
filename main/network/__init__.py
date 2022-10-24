@@ -12,7 +12,7 @@ import numpy as np
 
 def do_everything():
     dataset = get_dataset()
-    train_size = int(0.05 * len(dataset))
+    train_size = int(0.01 * len(dataset))
     validation_size = int(0.01 * len(dataset))
     test_size = len(dataset) - train_size - validation_size
     train_dataset, test_dataset, validation_dataset = torch.utils.data.random_split(

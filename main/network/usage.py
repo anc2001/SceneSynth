@@ -10,14 +10,15 @@ import os
 
 from torch.utils.tensorboard import SummaryWriter
 
-def get_network_feedback(model, dataset, parent_folder, device):
+def get_network_feedback(model, dataset, parent_folder, writer, tag, device):
     print("Getting network feedback")
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
     program_dataset = dataset.dataset
 
     folders_to_write = [os.path.join(parent_folder, str(i)) for i in range(5)]
-    for folder_to_write, idx in zip(folders_to_write, indices[:5]):
+    for i, (folder_to_write, idx) in enumerate(zip(folders_to_write, indices[:5])):
+        base_tag = tag + f"/{i}"
         (scene, query_object), _ = program_dataset[idx]
         if not os.path.exists(folder_to_write):
             os.mkdir(folder_to_write)
@@ -25,28 +26,41 @@ def get_network_feedback(model, dataset, parent_folder, device):
         # Is program valid 
         program = ProgramTree()
         if verify_program(inferred_tokens, len(scene.objects)):
+            info_string = "without guarantee"
+            f = open(os.path.join(folder_to_write, "info.txt"), "w")
+            f.write(info_string)
+            f.close()
+
+            writer.add_text(base_tag + "/info", info_string)
+
             program.from_tokens(inferred_tokens)
-            program.print_program(scene, query_object, folder_to_write)
-            f = open(os.path.join(folder_to_write, "info.txt"), "w")
-            f.write("Program inferred without help")
-            f.close()
+            program.print_program(
+                scene, query_object, folder_to_write,
+                writer = writer, base_tag = base_tag, display_on_tensorboard = True
+            )
         else: 
+            info_string = "with guarantee\n" + "previously inferred program:\n"
+            info_string += str(inferred_tokens['structure']) + "\n"
+            info_string += str(inferred_tokens['constraints']) + "\n"
             f = open(os.path.join(folder_to_write, "info.txt"), "w")
-            f.write("Program inferred with guarantee mode\n")
-            f.write("Previously inferred program:\n")
-            f.write(str(inferred_tokens['structure']) + "\n")
-            f.write(str(inferred_tokens['constraints']) + "\n")
+            f.write(info_string)
             f.close()
+
+            writer.add_text(base_tag + "/info", info_string)
+
             inferred_tokens = infer_program(model, 
                 scene, query_object, device, 
                 guarantee_program=True
             )
             if not verify_program(inferred_tokens, len(scene.objects)):
                  # sanity check 
-                print("Inferred program with guarantee is not correct (likely hit limit)")
+                print("Inferred program with guarantee is not correct, You wrote something wrong!")
             program.from_tokens(inferred_tokens)
             program.evaluate(scene, query_object)
-            program.print_program(scene, query_object, folder_to_write )
+            program.print_program(
+                scene, query_object, folder_to_write,
+                writer = writer, base_tag = base_tag, display_on_tensorboard = True
+            )
 
 def infer_program(model, scene, query_object, device, guarantee_program=False):
     model.eval()
@@ -155,16 +169,22 @@ def train_test_network_with_feedback(
         print("Epoch: {}, Train Type Accuracy: {}".format(epoch, np.mean(epoch_type_accuracies)))
         print("Epoch: {}, Train Object Accuracy: {}".format(epoch, np.mean(epoch_object_accuracies)))
         print("Epoch: {}, Train Direction Accuracy: {}".format(epoch, np.mean(epoch_direction_accuracies)))
-        
-        get_network_feedback(model, train_dataset, train_folder, device)
+
+        train_tag = f"feedback/epoch_{epoch}/train"
+        get_network_feedback(model, train_dataset, train_folder, writer, train_tag, device)
+
         evaluate_network(model, validation_dataloader, network_config, "validation", writer, epoch)
-        get_network_feedback(model, validation_dataset, validation_folder, device)
+
+        val_tag = f"feedback/epoch_{epoch}/validation"
+        get_network_feedback(model, validation_dataset, validation_folder, writer, val_tag, device)
 
     test_folder = os.path.join(parent_folder, "test")    
     if not os.path.exists(test_folder):
         os.mkdir(test_folder)   
     evaluate_network(model, test_dataloader, network_config, "test", writer, 0)
-    get_network_feedback(model, test_dataset, test_folder, device)
+
+    test_tag = "feedback/test"
+    get_network_feedback(model, test_dataset, test_folder, writer, test_tag, device)
 
 def evaluate_network(
         model, test_dataloader, network_config, evaluation_type,
