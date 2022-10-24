@@ -8,14 +8,16 @@ from tqdm import tqdm
 import numpy as np
 import os
 
+from torch.utils.tensorboard import SummaryWriter
+
 def get_network_feedback(model, dataset, parent_folder, device):
+    print("Getting network feedback")
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
     program_dataset = dataset.dataset
 
     folders_to_write = [os.path.join(parent_folder, str(i)) for i in range(5)]
-
-    for folder_to_write, idx in zip(folders_to_write, indices[:10]):
+    for folder_to_write, idx in zip(folders_to_write, indices[:5]):
         (scene, query_object), _ = program_dataset[idx]
         if not os.path.exists(folder_to_write):
             os.mkdir(folder_to_write)
@@ -24,16 +26,27 @@ def get_network_feedback(model, dataset, parent_folder, device):
         program = ProgramTree()
         if verify_program(inferred_tokens, len(scene.objects)):
             program.from_tokens(inferred_tokens)
-            program.print_program(scene, query_object, parent_folder)
-        else:
-            print("Invalid inferred program, running with guarantee") # Need debugging here 
+            program.print_program(scene, query_object, folder_to_write)
+            f = open(os.path.join(folder_to_write, "info.txt"), "w")
+            f.write("Program inferred without help")
+            f.close()
+        else: 
+            f = open(os.path.join(folder_to_write, "info.txt"), "w")
+            f.write("Program inferred with guarantee mode\n")
+            f.write("Previously inferred program:\n")
+            f.write(str(inferred_tokens['structure']) + "\n")
+            f.write(str(inferred_tokens['constraints']) + "\n")
+            f.close()
             inferred_tokens = infer_program(model, 
                 scene, query_object, device, 
                 guarantee_program=True
             )
-            verify_program(inferred_tokens, len(scene.objects)) # sanity check 
+            if not verify_program(inferred_tokens, len(scene.objects)):
+                 # sanity check 
+                print("Inferred program with guarantee is not correct (likely hit limit)")
             program.from_tokens(inferred_tokens)
-            program.print_program(scene, query_object, parent_folder)
+            program.evaluate(scene, query_object)
+            program.print_program(scene, query_object, folder_to_write )
 
 def infer_program(model, scene, query_object, device, guarantee_program=False):
     model.eval()
@@ -69,6 +82,9 @@ def train_test_network_with_feedback(
     test_dataloader = get_dataloader(test_dataset)
     validation_dataloader = get_dataloader(validation_dataset)
 
+    num_training_examples = len(train_dataloader)
+    writer = SummaryWriter('runs/toy_test')
+
     for epoch in range(network_config['Training']['epochs']):
         epoch_folder = os.path.join(parent_folder, "epoch_" + str(epoch))
         train_folder = os.path.join(epoch_folder, "train")
@@ -78,13 +94,14 @@ def train_test_network_with_feedback(
                 os.mkdir(folder)
 
         epoch_loss = 0
+        epoch_accuracies = []
         epoch_structure_accuracies = []
         epoch_type_accuracies = []
         epoch_object_accuracies = []
         epoch_direction_accuracies = []
         model.train()
         print("Training epoch {}".format(epoch))
-        for vals in tqdm(train_dataloader):
+        for i, vals in enumerate(tqdm(train_dataloader)):
             src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask = vals
             structure_preds, constraint_preds = model(
                 src, src_padding_mask, 
@@ -110,46 +127,61 @@ def train_test_network_with_feedback(
                 structure_accuracy,
                 type_accuracy,
                 object_accuracy,
-                direction_accuracy
+                direction_accuracy,
+                total_accuracy
             ) = model.accuracy_fnc(
                 structure_preds, tgt, 
                 constraint_preds, tgt_c, tgt_c_padding_mask
             )
 
+            n_iter = epoch * num_training_examples + i
+            writer.add_scalar('Loss/train', loss.item(), n_iter)
+            writer.add_scalar('Accuracy/train/total', total_accuracy, n_iter)
+            writer.add_scalar('Accuracy/train/structure', structure_accuracy, n_iter)
+            writer.add_scalar('Accuracy/train/type', type_accuracy, n_iter)
+            writer.add_scalar('Accuracy/train/object', object_accuracy, n_iter)
+            writer.add_scalar('Accuracy/train/direction', direction_accuracy, n_iter)
+
+            epoch_loss += loss.item()
+            epoch_accuracies.append(total_accuracy)
             epoch_structure_accuracies.append(structure_accuracy)
             epoch_type_accuracies.append(type_accuracy)
             epoch_object_accuracies.append(object_accuracy)
             epoch_direction_accuracies.append(direction_accuracy)
-            
-            epoch_loss += loss.item()
 
-        num_training_examples = len(train_dataloader)
         print("Epoch: {}, Train Loss: {}".format(epoch, epoch_loss / num_training_examples))
+        print("Epoch: {}, Train Accuracy: {}".format(epoch, np.mean(epoch_accuracies)))
         print("Epoch: {}, Train Structure Accuracy: {}".format(epoch, np.mean(epoch_structure_accuracies)))
         print("Epoch: {}, Train Type Accuracy: {}".format(epoch, np.mean(epoch_type_accuracies)))
         print("Epoch: {}, Train Object Accuracy: {}".format(epoch, np.mean(epoch_object_accuracies)))
         print("Epoch: {}, Train Direction Accuracy: {}".format(epoch, np.mean(epoch_direction_accuracies)))
         
         get_network_feedback(model, train_dataset, train_folder, device)
-        evaluate_network(model, validation_dataloader, network_config, "Validation")
+        evaluate_network(model, validation_dataloader, network_config, "validation", writer, epoch)
         get_network_feedback(model, validation_dataset, validation_folder, device)
 
-    test_folder = os.path.join(parent_folder, "validation")    
+    test_folder = os.path.join(parent_folder, "test")    
     if not os.path.exists(test_folder):
         os.mkdir(test_folder)   
-    evaluate_network(model, test_dataloader, network_config, "Test")
+    evaluate_network(model, test_dataloader, network_config, "test", writer, 0)
     get_network_feedback(model, test_dataset, test_folder, device)
 
-def evaluate_network(model, test_dataloader, network_config, evaluation_type):
+def evaluate_network(
+        model, test_dataloader, network_config, evaluation_type,
+        writer, epoch
+    ):
     device = network_config['device']
     model.eval()
     with torch.no_grad():
+        num_test_examples = len(test_dataloader)
+
         loss_sum = 0
+        accuracies = []
         structure_accuracies = []
         type_accuracies = []
         object_accuracies = []
         direction_accuracies = []
-        for vals in tqdm(test_dataloader):
+        for i, vals in enumerate(tqdm(test_dataloader)):
             src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask = vals
             structure_preds, constraint_preds = model(
                 src, src_padding_mask, 
@@ -167,20 +199,30 @@ def evaluate_network(model, test_dataloader, network_config, evaluation_type):
                 structure_accuracy,
                 type_accuracy,
                 object_accuracy,
-                direction_accuracy
+                direction_accuracy,
+                total_accuracy
             ) = model.accuracy_fnc(
                 structure_preds, tgt, 
                 constraint_preds, tgt_c, tgt_c_padding_mask
             )
-            
+
+            n_iter = epoch * num_test_examples + i
+            writer.add_scalar(f'Loss/{evaluation_type}', loss.item(), n_iter)
+            writer.add_scalar(f'Accuracy/{evaluation_type}/total', total_accuracy, n_iter)
+            writer.add_scalar(f'Accuracy/{evaluation_type}/structure', structure_accuracy, n_iter)
+            writer.add_scalar(f'Accuracy/{evaluation_type}/type', type_accuracy, n_iter)
+            writer.add_scalar(f'Accuracy/{evaluation_type}/object', object_accuracy, n_iter)
+            writer.add_scalar(f'Accuracy/{evaluation_type}/direction', direction_accuracy, n_iter)
+
+            loss_sum += loss.item()
+            accuracies.append(total_accuracy)
             structure_accuracies.append(structure_accuracy)
             type_accuracies.append(type_accuracy)
             object_accuracies.append(object_accuracy)
-            direction_accuracies.append(direction_accuracy)
-            loss_sum += loss.item()
+            direction_accuracies.append(direction_accuracy)  
 
-        num_test_examples = len(test_dataloader)
         print("{} Loss: {}".format(evaluation_type, loss_sum / num_test_examples))
+        print("{} Accuracy: {}".format(evaluation_type, np.mean(accuracies)))
         print("{} Structure Accuracy: {}".format(evaluation_type, np.mean(structure_accuracies)))
         print("{} Type Accuracy: {}".format(evaluation_type, np.mean(type_accuracies)))
         print("{} Object Accuracy: {}".format(evaluation_type, np.mean(object_accuracies)))

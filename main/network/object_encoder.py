@@ -14,7 +14,7 @@ class ObjectEncoderModel(nn.Module):
         self.embedding = nn.Embedding(num_obj_categories, self.hidden_dim)
         self.fc = nn.Sequential(
             nn.Linear(1 + self.hidden_dim * 6, 2 * self.d_model),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             nn.Linear(2 * self.d_model, self.d_model)
         )
         

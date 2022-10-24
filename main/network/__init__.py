@@ -10,14 +10,6 @@ import torch
 import os
 import numpy as np
 
-# def test_infer_program(model, dataset, folder, device):
-#     indices = np.array(dataset.indices)
-#     np.random.shuffle(indices)
-#     program_dataset = dataset.dataset
-#     for idx in indices:
-#         (scene, query_object), _ = program_dataset[idx]
-#         infer_program(model, scene, query_object, folder, device)
-
 def do_everything():
     dataset = get_dataset()
     train_size = int(0.05 * len(dataset))

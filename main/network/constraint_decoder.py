@@ -12,9 +12,21 @@ class ConstraintDecoderModel(nn.Module):
         self.d_model = d_model
         self.type_embedding = nn.Embedding(len(constraint_types), self.d_model)
 
-        self.constraint_type_selection = nn.Linear(d_model, len(constraint_types))
-        self.object_selection = nn.Linear(3 * d_model, d_model)
-        self.direction_selection = nn.Linear(4 * d_model, len(direction_types))
+        self.constraint_type_selection = nn.Sequential(
+            nn.Linear(d_model, 2 * d_model),
+            nn.LeakyReLU(),
+            nn.Linear(2 * d_model, len(constraint_types))
+        )
+        self.object_selection = nn.Sequential(
+            nn.Linear(3 * d_model, 2 * d_model),
+            nn.LeakyReLU(),
+            nn.Linear(2 * d_model, d_model)
+        )
+        self.direction_selection = nn.Sequential(
+            nn.Linear(4 * d_model, 2 * d_model),
+            nn.LeakyReLU(),
+            nn.Linear(2 * d_model, len(direction_types))
+        )
 
     def forward(
         self, 

@@ -101,14 +101,18 @@ class ModelCore(nn.Module):
 
         # guarantee program 
         # Base mask with <sos>, <eos>, and <pad> masked out 
+        program_max_length = 40
         num_spots_to_fill = 1
         base_mask = torch.tensor([1, 1, 1, 0, 0, 0]).to(device)
-        while len(tgt) < 50:
+        need_to_end = False
+        constraint_only_mask = torch.tensor([1, 0, 0, 0, 0, 0]).to(device)
+        while len(tgt) < program_max_length:
             decoded_output = self.transformer_decoder(tgt_e, memory)
             logits = self.structure_head(decoded_output[-1])
             # guarantee program 
             if guarantee_program:
-                logits *= base_mask
+                mask = constraint_only_mask if need_to_end else base_mask
+                logits *= mask
             
             predicted_token = torch.argmax(logits).item()
 
@@ -122,6 +126,10 @@ class ModelCore(nn.Module):
                     to_add = torch.tensor([[predicted_token]]).to(device)
                     tgt = torch.cat([tgt, to_add], dim = 0)
                     predicted_token = structure_vocab_map['<eos>']
+                
+                if 1 + len(tgt) + num_spots_to_fill == program_max_length:
+                    need_to_end = True
+                    print("Need to end flag set")
             
             to_add = torch.tensor([[predicted_token]]).to(device)
             tgt = torch.cat([tgt, to_add], dim = 0)
@@ -191,6 +199,9 @@ class ModelCore(nn.Module):
             constraints_flattened[:, 0] == constraint_types_map['reachable_by_arm']
         )
 
+        total_tokens = 0
+        total_correct_tokens = 0
+
         # Structure accuracy 
         total_structure_tokens = torch.sum(padding_mask).item()
         total_structure_correct = torch.sum(
@@ -210,6 +221,8 @@ class ModelCore(nn.Module):
             * padding_mask
         ).item()
         structure_accuracy = total_structure_correct / total_structure_tokens
+        total_tokens += total_structure_tokens
+        total_correct_tokens += total_structure_correct 
 
         # Constraint type accuracy 
         total_type_tokens = n_c
@@ -217,6 +230,8 @@ class ModelCore(nn.Module):
             torch.argmax(type_selections, dim = 1) == constraints_flattened[:, 0]
         ).item()
         type_accuracy = total_type_correct / total_type_tokens
+        total_tokens += total_type_tokens
+        total_correct_tokens += total_type_correct 
 
         # Object selection accuracy 
         total_object_tokens = n_c
@@ -224,6 +239,8 @@ class ModelCore(nn.Module):
             torch.argmax(object_selections, dim = 1) == constraints_flattened[:, 2]
         ).item()
         object_accuracy = total_object_correct / total_object_tokens
+        total_tokens += total_object_tokens
+        total_correct_tokens += total_object_correct 
 
         # Direction selection accuracy 
         total_direction_tokens = torch.sum(directions_mask).item()
@@ -231,10 +248,14 @@ class ModelCore(nn.Module):
             (torch.argmax(direction_selections, dim = 1) == constraints_flattened[:, 3]) * directions_mask
         ).item()
         direction_accuracy = total_direction_correct / total_direction_tokens
+        total_tokens += total_direction_tokens
+        total_correct_tokens += total_direction_correct 
 
+        total_accuracy = total_correct_tokens / total_tokens 
         return (
             structure_accuracy,
             type_accuracy,
             object_accuracy,
-            direction_accuracy
+            direction_accuracy,
+            total_accuracy
         )

@@ -4,3 +4,4 @@ open3d
 torch
 torchvision 
 tqdm
+tensorboard

@@ -6,7 +6,7 @@ import numpy as np
 def generate_idx_map(list_of_vals):
     return {val : idx  for idx, val in enumerate(list_of_vals)}
 
-data_filepath = "/Users/adrianchang/CS/research/SceneSynth/data"
+data_filepath = "/home/achang57/SceneSynth/data"
 image_filepath = os.path.join(data_filepath, "images")
 colors = {
         'outside' : np.array([222, 222, 222]) / 256,
