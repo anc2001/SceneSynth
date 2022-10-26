@@ -7,7 +7,7 @@ from main.config import \
     constraint_types_map
 
 import torch
-from torch import nn, Tensor
+from torch import nn
 
 # Full implementation of the model end to end 
 class ModelCore(nn.Module):
@@ -36,7 +36,7 @@ class ModelCore(nn.Module):
             nn.TransformerEncoderLayer(
                 d_model=self.d_model,
                 nhead=self.nhead,
-                dim_feedforward=2 * d_model
+                dim_feedforward= 4 * d_model
             ),
             num_layers=num_layers
         )
@@ -44,7 +44,7 @@ class ModelCore(nn.Module):
             nn.TransformerDecoderLayer(
                 d_model=self.d_model,
                 nhead=self.nhead,
-                dim_feedforward= 2 * d_model
+                dim_feedforward= 4 * d_model
             ),
             num_layers=num_layers
         )

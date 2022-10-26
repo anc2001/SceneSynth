@@ -4,5 +4,7 @@ open3d
 torch
 torchvision 
 tqdm
-tensorboard
 pillow
+wandb
+ete3
+pyyaml

@@ -1,4 +1,4 @@
-from main.config import get_network_config, structure_vocab_map
+from main.config import structure_vocab_map
 from main.program_extraction.data_processing import read_program_data
 from main.common.utils import vectorize_scene
 
@@ -9,19 +9,18 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-network_config = get_network_config()
-device = network_config['device']
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def get_dataset():
     data = read_program_data()
     dataset = ProgramDataset(data)
     return dataset
 
-def get_dataloader(dataset):
+def get_dataloader(dataset, batch_size):
     # Return the dataloader
     dataloader = DataLoader(
         dataset, 
-        batch_size = network_config['Training']['batch_size'], 
+        batch_size = batch_size, 
         shuffle = True, 
         collate_fn = collate_fn
     )

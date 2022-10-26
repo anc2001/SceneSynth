@@ -1,0 +1,15 @@
+name: setting_up_test
+
+architecture:
+  d_model: 512
+  nhead: 8
+  num_layers: 4
+  loss: cross_entropy
+
+training:
+  epochs: 15
+  batch_size: 64
+  lr: 0.003
+  optimizer: adam
+  train_split: 0.01
+  val_split: 0.01

@@ -1,12 +1,18 @@
-from main.config.network_config import get_network_config
-
 import os
 import numpy as np
+import yaml
+from yaml import Loader
 
 def generate_idx_map(list_of_vals):
     return {val : idx  for idx, val in enumerate(list_of_vals)}
 
-data_filepath = "/home/achang57/SceneSynth/data"
+def load_config(filepath):
+    with open(filepath, "r") as f:
+        config = yaml.load(f, Loader=Loader)
+    return config
+
+# data_filepath = "/home/achang57/SceneSynth/data"
+data_filepath = "/Users/adrianchang/CS/research/SceneSynth/data"
 image_filepath = os.path.join(data_filepath, "images")
 colors = {
         'outside' : np.array([222, 222, 222]) / 256,

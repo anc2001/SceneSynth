@@ -95,7 +95,7 @@ def generate_most_restrictive_program(room, query_object):
         if len(subprogram):
             program.combine('and', subprogram)
     
-    if not len(subprogram):
+    if not len(program):
         constraint = [
             constraint_types_map['align'],
             query_object_idx,

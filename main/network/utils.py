@@ -8,16 +8,22 @@ def save_model(model, path):
 def load_model(model, path):
     model.load_state_dict(torch.load(path))
 
-def optimizer_factory(model, config):
-    if config['Training']['optimizer'] == 'adam':
-        return torch.optim.Adam(model.parameters(), lr=config['Training']['lr'])
-    elif config['Training']['optimizer'] == 'sgd':
-        return torch.optim.SGD(model.parameters(), lr=config['Training']['lr'])
+def save_checkpoint():
+    pass
+
+def load_checkpoint():
+    pass
+
+def optimizer_factory(model, type, lr):
+    if type == 'adam':
+        return torch.optim.Adam(model.parameters(), lr=lr)
+    elif type == 'sgd':
+        return torch.optim.SGD(model.parameters(), lr=lr)
     else:
         raise ValueError('Optimizer not supported')
 
-def loss_factory(config):
-    if config['Architecture']['loss'] == 'cross_entropy':
+def loss_factory(type):
+    if type == 'cross_entropy':
         return torch.nn.CrossEntropyLoss(reduction='none')
     else:
         raise ValueError('Loss not supported')
@@ -26,6 +32,7 @@ def generate_square_subsequent_mask(sz, device):
     # sz: sequence length
     return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1).to(device)
 
+# For object encoder 
 class FixedPositionalEncoding(nn.Module):
     def __init__(self, proj_dims, val=0.1):
         super().__init__()
@@ -40,6 +47,7 @@ class FixedPositionalEncoding(nn.Module):
             torch.cos(x * self.sigma.to(x.device))
         ], dim=-1)
 
+# For positional encoding of transformer inputs 
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
         super().__init__()
