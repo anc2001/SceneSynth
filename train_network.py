@@ -60,9 +60,6 @@ def get_network_feedback(model, dataset, base_tag, device):
         wandb_images = [wandb.Image(image, caption=name) for name, image in zip(image_names, images)]
         wandb.log({tag : wandb_images})    
     
-        table = wandb.Table(data=[data_entry], columns=columns)
-        wandb.log({tag : table})
-    
     table = wandb.Table(data=data, columns=columns)
     wandb.log({base_tag : table})
 
@@ -144,9 +141,10 @@ def parseArguments():
 def main(args):
     config = load_config(args.config)
     wandb.init(
-        project = config['name'],
+        project = config['project'],
+        name = config['name'],
         config = config
-        )
+    )
 
     parent_folder = os.path.join(data_filepath, "network_feedback")
     if os.path.exists(parent_folder):

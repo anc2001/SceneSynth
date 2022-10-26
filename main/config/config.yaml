@@ -1,4 +1,5 @@
-name: setting_up_test
+project: toy_test
+name: run_0
 
 architecture:
   d_model: 512
@@ -7,9 +8,9 @@ architecture:
   loss: cross_entropy
 
 training:
-  epochs: 15
+  epochs: 10
   batch_size: 64
   lr: 0.003
   optimizer: adam
-  train_split: 0.01
-  val_split: 0.01
+  train_split: 0.8
+  val_split: 0.1
