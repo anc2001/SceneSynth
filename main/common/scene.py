@@ -137,7 +137,7 @@ class Scene():
                 
         return object_list
     
-    def convert_to_image(self):
+    def convert_to_image(self, empty=False):
         """
         Prints the orthographic view 
         """
@@ -149,8 +149,9 @@ class Scene():
             triangle = self.vertices[face]
             write_triangle_to_image(triangle, self, image, colors['inside'])
         
-        for object in self.objects:
-            object.write_to_image(self, image)
+        if not empty:
+            for object in self.objects:
+                object.write_to_image(self, image)
         
         image = np.rot90(image, axes=(0,1))
         return image

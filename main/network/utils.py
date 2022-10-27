@@ -16,7 +16,7 @@ def load_checkpoint():
 
 def optimizer_factory(model, type, lr):
     if type == 'adam':
-        return torch.optim.Adam(model.parameters(), lr=lr)
+        return torch.optim.Adam(model.parameters(), lr=lr, eps=1e-6)
     elif type == 'sgd':
         return torch.optim.SGD(model.parameters(), lr=lr)
     else:

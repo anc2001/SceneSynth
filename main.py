@@ -6,6 +6,7 @@ from main.program_extraction import generate_most_restrictive_program, \
     verify_program_validity
 
 import matplotlib.image as img
+import matplotlib.pyplot as plt
 import os
 from argparse import ArgumentParser
 from tqdm import tqdm
@@ -41,16 +42,8 @@ def program_execution(index):
         program.evaluate(subscene, query_object)
         parent_folder = os.path.join(room_folder, str(i))
         os.mkdir(parent_folder)
-        program_string, images, image_names = program.print_program(subscene, query_object)
-        # Write program 
-        fout = open(os.path.join(parent_folder, "program.txt"), "w")
-        fout.write(program_string)
-        fout.close()
-
-        # Write all the relevant images 
-        for name, image in zip(image_names, images):
-            filepath = os.path.join(parent_folder, name + ".png")
-            img.imsave(filepath, image)
+        fig = program.print_program(subscene, query_object)
+        fig.savefig(os.path.join(parent_folder, "tree.png"))
 
 def main(args):
     if args.mode == 'program_extraction':

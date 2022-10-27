@@ -8,3 +8,4 @@ pillow
 wandb
 ete3
 pyyaml
+pygraphviz

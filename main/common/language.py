@@ -1,12 +1,14 @@
 from main.common.scene import Scene
 from main.common.object import Furniture
 from main.compiler import \
-    ensure_placement_validity, solve_constraint, \
-    convert_mask_to_image
+    ensure_placement_validity, solve_constraint
 from main.common.utils import raise_exception
+from main.common.tree_viz import visualize_program
 
-from main.config import grid_size, \
+from main.config import \
     direction_types_map, constraint_types_map
+
+
 
 import numpy as np
 
@@ -177,40 +179,5 @@ class ProgramTree():
         return self.mask
 
     def print_program(self, scene, query_object):
-        # return text description, list of images, list of image names 
-        program_text = []
-        images = []
-        image_names = []
-        def print_program_helper(node, count):
-            if node.is_leaf():
-                mask_name = f"mask_{count}"
-                program_text.append(f"{mask_name} = {node.constraint}\n")
-                image = convert_mask_to_image(node.mask, scene)
-                images.append(image)
-                image_names.append(mask_name)
-                return mask_name, count + 1
-            else:
-                left_name, new_count = print_program_helper(node.left, count)
-                right_name, newer_count = print_program_helper(node.right, new_count)
-                mask_name = f"mask_{newer_count}"
-                program_text.append(f"{mask_name} = {left_name} {node.type} {right_name}\n")
-                image = convert_mask_to_image(node.mask, scene)
-                images.append(image)
-                image_names.append(mask_name)
-                return mask_name, newer_count + 1
-
-        final_name, _ = print_program_helper(self.root, 0)
-        program_text.append(f"return {final_name}\n")
-        program_string = ''.join(program_text)
-
-        image = convert_mask_to_image(self.mask, scene)
-        images.append(image)
-        image_names.append("final")
-
-        image = np.zeros((grid_size, grid_size, 3))
-        query_object.write_to_image(scene, image, normalize= True)
-        image = np.rot90(image)
-        images.append(image)
-        image_names.append("query_object")
-
-        return program_string, images, image_names
+        # return matplotlib figure of program diagram
+        return visualize_program(self, scene, query_object)

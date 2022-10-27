@@ -4,8 +4,7 @@ from main.common.object import BBox
 
 import numpy as np
 
-def convert_mask_to_image(mask, scene):
-    scene_image = scene.convert_to_image()
+def convert_mask_to_image(mask, scene_image):
     stacked_references = np.rot90(mask, axes=(1,2))
     image = np.array([])
     for i in range(num_angles):

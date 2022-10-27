@@ -13,19 +13,31 @@ class ConstraintDecoderModel(nn.Module):
         self.type_embedding = nn.Embedding(len(constraint_types), self.d_model)
 
         self.constraint_type_selection = nn.Sequential(
-            nn.Linear(d_model, 2 * d_model),
+            nn.Linear(2 * d_model, 2 * d_model), # memory_vec, head
             nn.LeakyReLU(),
             nn.Linear(2 * d_model, len(constraint_types))
         )
         self.object_selection = nn.Sequential(
-            nn.Linear(3 * d_model, 2 * d_model),
+            nn.Linear(4 * d_model, 2 * d_model), # memory_vec, head, type_e, query_e
             nn.LeakyReLU(),
             nn.Linear(2 * d_model, d_model)
         )
         self.direction_selection = nn.Sequential(
-            nn.Linear(4 * d_model, 2 * d_model),
+            nn.Linear(5 * d_model, 2 * d_model), # memory_vec, head, type_e, query_e, object_e
             nn.LeakyReLU(),
             nn.Linear(2 * d_model, len(direction_types))
+        )
+
+        self.constraint_encoder = nn.Sequential(
+            nn.Linear(5 * d_model, 2 * d_model), # head, type_e, query_e, object_e, direction_e
+            nn.LeakyReLU(),
+            nn.Linear(2 * d_model, d_model)
+        )
+
+        self.update_memory_vector = nn.Sequential(
+            nn.Linear(2 * d_model, 2 * d_model), # memory_vec, constraint_e
+            nn.LeakyReLU(),
+            nn.Linear(2 * d_model, d_model)
         )
 
     def forward(
@@ -38,6 +50,11 @@ class ConstraintDecoderModel(nn.Module):
         src_padding_mask,
         device
     ):
+        # Predict constraints autoregressively 
+        batch_size = tgt_c.size(0)
+        for batch_idx in range(batch_size):
+            pass
+
         structure_c_mask = tgt == structure_vocab_map['c']
         only_constraint_heads = decoded_output[structure_c_mask] # done with tgt
 
