@@ -16,17 +16,18 @@ import os
 import wandb
 from argparse import ArgumentParser
 
-def get_network_feedback(model, dataset, base_tag, device, wandb = False):
+def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wandb = False):
     print("Getting network feedback")
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
     program_dataset = dataset.dataset
 
-    columns = ["guarantee_required", "previous_structure", "previous_constraints", "program"]
+    columns = ["guarantee_required", "previous_structure", "previous_constraints"]
     data = []
-    tags = [base_tag + f"/example_{i}" for i in range(5)]
-    for tag, idx in zip(tags, indices[:5]):
-        (scene, query_object), ground_truth_rpogram = program_dataset[idx]
+
+    tags = [base_tag + f"/example_{i}" for i in range(num_examples)]
+    for tag, idx in zip(tags, indices[:num_examples]):
+        (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
         data_entry = []
         inferred_tokens = infer_program(model, scene, query_object, device)
         # Is program valid 
@@ -39,7 +40,7 @@ def get_network_feedback(model, dataset, base_tag, device, wandb = False):
             data_entry.append(str(inferred_tokens['structure']))
             data_entry.append(str(inferred_tokens['constraints']))
 
-            inferred_tokens = infer_program(model, 
+            inferred_tokens = infer_program(model,
                 scene, query_object, device, 
                 guarantee_program=True
             )
@@ -52,11 +53,21 @@ def get_network_feedback(model, dataset, base_tag, device, wandb = False):
         program.from_tokens(inferred_tokens)
         program.evaluate(scene, query_object)
         fig = program.print_program(scene, query_object)
-        data_entry.append(program_string)
-        data.append(data_entry)
 
         if wandb:
-            wandb.log({tag : fig})    
+            wandb.log({tag + "_inferred": fig})
+        else:
+            pass
+
+        program = ProgramTree()
+        program.from_tokens(ground_truth_program_tokens)
+        program.evaluate(scene, query_object)
+        fig = program.print_program(scene, query_object)  
+    
+        if wandb:
+            wandb.log({tag + "_ground_truth": fig})
+        else:
+            pass
     
     if wandb:
         table = wandb.Table(data=data, columns=columns)
@@ -145,7 +156,7 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
 
 def parseArguments():
     parser = ArgumentParser()
-    parser.add_argument('wandb', type=bool, default=False, 
+    parser.add_argument('--wandb', type=bool, default=False, 
         help="enables wandb run")
     parser.add_argument('--config', type=str, default = os.path.join(os.path.dirname(__file__), 'main/config/config.yaml'), 
         help="config to use for run")
@@ -184,6 +195,7 @@ def main(args):
             d_model = config['architecture']['d_model'],
             nhead = config['architecture']['nhead'],
             num_layers= config['architecture']['num_layers'],
+            max_num_objects = 20,
             loss_func=loss_factory(config['architecture']['loss'])
         )
     model.to(device)
@@ -200,8 +212,7 @@ def main(args):
     
     epochs = config['training']['epochs']
     for epoch in range(epochs):
-        base_tag = f"epoch_{epoch}"
-
+        
         model.train()
         iterate_through_data(
             model, train_dataloader, device, "train", 
@@ -209,7 +220,7 @@ def main(args):
         )
         get_network_feedback(
             model, train_dataset, 
-            base_tag + "/train/examples",
+            f"examples/train/epoch_{epoch}",
             device
         )
 
@@ -224,7 +235,7 @@ def main(args):
 
             get_network_feedback(
                 model, val_dataset,
-                base_tag + "/val/examples",
+                f"examples/val/epoch_{epoch}",
                 device
             )
     

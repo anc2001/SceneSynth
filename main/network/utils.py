@@ -49,7 +49,7 @@ class FixedPositionalEncoding(nn.Module):
 
 # For positional encoding of transformer inputs 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
+    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 50):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
 
@@ -65,5 +65,7 @@ class PositionalEncoding(nn.Module):
         Args:
             x: Tensor, shape [seq_len, batch_size, embedding_dim]
         """
-        x = x + self.pe[:x.size(0)]
-        return self.dropout(x)
+        return self.dropout(x + self.pe[:x.size(0)])
+    
+    def encode_single(self, x : Tensor, idx : int):
+        return self.dropout(x + self.pe[idx])

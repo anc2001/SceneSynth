@@ -35,15 +35,13 @@ def program_execution(index):
     scene = scene_list[index]
     scene_image = scene.convert_to_image()
     img.imsave(os.path.join(room_folder, "scene.png"), scene_image)
-    for i, (subscene, query_object) in tqdm(enumerate(scene.permute())):
+    for i, (subscene, query_object) in enumerate(tqdm(scene.permute())):
         program = generate_most_restrictive_program(subscene, query_object)
         if verify_program_validity(program, subscene, query_object):
             print(f"verified: {i}")
         program.evaluate(subscene, query_object)
-        parent_folder = os.path.join(room_folder, str(i))
-        os.mkdir(parent_folder)
         fig = program.print_program(subscene, query_object)
-        fig.savefig(os.path.join(parent_folder, "tree.png"))
+        fig.savefig(os.path.join(room_folder, f"{i}.png"))
 
 def main(args):
     if args.mode == 'program_extraction':

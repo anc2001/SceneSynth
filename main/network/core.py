@@ -11,7 +11,7 @@ from torch import nn
 
 # Full implementation of the model end to end 
 class ModelCore(nn.Module):
-    def __init__(self, d_model : int, nhead : int, num_layers : int, loss_func):
+    def __init__(self, d_model : int, nhead : int, num_layers : int, max_num_objects : int, loss_func):
         # d_model: dimension of the model
         # nhead: number of heads in the multiheadattention models
         super().__init__()
@@ -27,9 +27,9 @@ class ModelCore(nn.Module):
             structure_vocab_map['<pad>']
         )
 
-        self.positional_encoding = PositionalEncoding(self.d_model)
+        self.positional_encoding = PositionalEncoding(self.d_model, max_len = max_num_objects)
         self.structure_head = nn.Linear(self.d_model, len(structure_vocab))
-        self.constraint_decoder = ConstraintDecoderModel(self.d_model)
+        self.constraint_decoder = ConstraintDecoderModel(self.d_model, nhead, num_layers, max_num_objects)
         self.loss_fnc = loss_func
 
         self.transformer_encoder = nn.TransformerEncoder(
@@ -81,11 +81,18 @@ class ModelCore(nn.Module):
         structure_preds = self.structure_head(decoded_output)
 
         constraint_preds = self.constraint_decoder(
-            decoded_output, tgt,
-            tgt_c, tgt_c_padding_mask, 
+            tgt_e, tgt_padding_mask, 
+            tgt_c, tgt_c_padding_mask,
             src_e, src_padding_mask,
             device
         )
+
+        # constraint_preds = self.constraint_decoder(
+        #     decoded_output, tgt,
+        #     tgt_c, tgt_c_padding_mask, 
+        #     src_e, src_padding_mask,
+        #     device
+        # )
         return structure_preds, constraint_preds
     
     def infer(self, src, device, guarantee_program=False):
@@ -169,9 +176,9 @@ class ModelCore(nn.Module):
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
         type_selections, object_selections, direction_selections = constraint_preds
 
-        types_loss = self.loss_fnc(type_selections, constraints_flattened[:, 0].long())
-        objects_loss = self.loss_fnc(object_selections, constraints_flattened[:, 2].long())
-        directions_loss  = self.loss_fnc(direction_selections, constraints_flattened[:, 3].long())
+        types_loss = self.loss_fnc(type_selections[~tgt_c_padding_mask], constraints_flattened[:, 0].long())
+        objects_loss = self.loss_fnc(object_selections[~tgt_c_padding_mask], constraints_flattened[:, 2].long())
+        directions_loss  = self.loss_fnc(direction_selections[~tgt_c_padding_mask], constraints_flattened[:, 3].long())
         # mask orientation constraints from directions loss 
         directions_mask = torch.logical_or(
             constraints_flattened[:, 0] == constraint_types_map['attach'],
