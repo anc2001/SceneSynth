@@ -147,7 +147,7 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             "direction_accuracy" : direction_accuracy
         }
         if wandb and type == "train":
-            wandb.log({type : log})
+            wandb.log({"train" : log})
         
         for key in log.keys():
             total_log[key].append(log[key])
@@ -214,10 +214,13 @@ def main(args):
     for epoch in range(epochs):
         
         model.train()
-        iterate_through_data(
+        log = iterate_through_data(
             model, train_dataloader, device, "train", 
             optimizer = optimizer, wandb = args.wandb
         )
+        if not args.wandb:
+            print(log)
+        
         get_network_feedback(
             model, train_dataset, 
             f"examples/train/epoch_{epoch}",
@@ -232,6 +235,8 @@ def main(args):
             )
             if args.wandb:
                 wandb.log({"val" : log})
+            else:
+                print(log)
 
             get_network_feedback(
                 model, val_dataset,
@@ -243,7 +248,67 @@ def main(args):
     model_save = os.path.join(data_filepath, "model.pt")
     save_model(model, model_save)
 
+def overfit_to_one(args):
+    config = load_config(args.config)
+    if args.wandb:
+        wandb.init(
+            project = config['project'],
+            name = config['name'],
+            config = config
+        )
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    dataset = get_dataset()
+    index = 182
+    # for i in range(500):
+    #     (scene, query_object), program_tokens = dataset[i]
+    #     print(f"{i}: {len(scene.objects)} {program_tokens['structure']}")
+    
+    # (scene, query_object), program_tokens = dataset[index]
+
+    # program = ProgramTree()
+    # program.from_tokens(program_tokens)
+    # program.evaluate(scene, query_object)
+    # fig = program.print_program(scene, query_object)
+    # fig.savefig("/Users/adrianchang/CS/research/SceneSynth/tree.png")
+    
+    single_point_dataset = torch.utils.data.Subset(dataset, [index])
+    single_point_dataloader = get_dataloader(single_point_dataset, 1)
+
+    model = ModelCore(
+        d_model = config['architecture']['d_model'],
+        nhead = config['architecture']['nhead'],
+        num_layers= config['architecture']['num_layers'],
+        max_num_objects = 50,
+        max_program_length= 30,
+        loss_func=loss_factory(config['architecture']['loss'])
+    )
+    model.to(device)
+
+    optimizer = optimizer_factory(
+        model, 
+        config['training']['optimizer'], 
+        config['training']['lr']
+    )
+
+    epochs = 200
+    for epoch in range(epochs):
+        model.train()
+        log = iterate_through_data(
+            model, single_point_dataloader, device, "train", 
+            optimizer = optimizer, wandb = args.wandb
+        )
+        if not args.wandb:
+            print(log)
+        
+        get_network_feedback(
+            model, single_point_dataset, 
+            f"examples/train/epoch_{epoch}",
+            device,
+            num_examples = 1
+        )
 
 if __name__ == '__main__':
     args = parseArguments()
-    main(args)
+    # main(args)
+    overfit_to_one(args)

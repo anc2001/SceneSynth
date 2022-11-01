@@ -11,12 +11,21 @@ from torch import nn
 
 # Full implementation of the model end to end 
 class ModelCore(nn.Module):
-    def __init__(self, d_model : int, nhead : int, num_layers : int, max_num_objects : int, loss_func):
+    def __init__(
+            self, 
+            d_model : int, 
+            nhead : int, 
+            num_layers : int, 
+            max_num_objects : int, 
+            max_program_length : int,
+            loss_func
+        ):
         # d_model: dimension of the model
         # nhead: number of heads in the multiheadattention models
         super().__init__()
         self.d_model = d_model
         self.nhead = nhead
+        self.max_program_length = max_program_length
         self.object_encoder = ObjectEncoderModel(
             d_model=self.d_model,
             num_obj_categories=len(object_types) + 1, 
@@ -29,7 +38,7 @@ class ModelCore(nn.Module):
 
         self.positional_encoding = PositionalEncoding(self.d_model, max_len = max_num_objects)
         self.structure_head = nn.Linear(self.d_model, len(structure_vocab))
-        self.constraint_decoder = ConstraintDecoderModel(self.d_model, nhead, num_layers, max_num_objects)
+        self.constraint_decoder = ConstraintDecoderModel(self.d_model, nhead, num_layers, max_program_length)
         self.loss_fnc = loss_func
 
         self.transformer_encoder = nn.TransformerEncoder(
@@ -87,12 +96,6 @@ class ModelCore(nn.Module):
             device
         )
 
-        # constraint_preds = self.constraint_decoder(
-        #     decoded_output, tgt,
-        #     tgt_c, tgt_c_padding_mask, 
-        #     src_e, src_padding_mask,
-        #     device
-        # )
         return structure_preds, constraint_preds
     
     def infer(self, src, device, guarantee_program=False):
@@ -108,12 +111,11 @@ class ModelCore(nn.Module):
 
         # guarantee program 
         # Base mask with <sos>, <eos>, and <pad> masked out 
-        program_max_length = 40
         num_spots_to_fill = 1
         base_mask = torch.tensor([0, 0, 0, 1, 1, 1]).bool().to(device)
         need_to_end = False
         constraint_only_mask = torch.tensor([0, 1, 1, 1, 1, 1]).bool().to(device)
-        while len(tgt) < program_max_length:
+        while len(tgt) < self.max_program_length:
             decoded_output = self.transformer_decoder(tgt_e, memory)
             logits = torch.squeeze(self.structure_head(decoded_output[-1]))
             # guarantee program 
@@ -134,27 +136,29 @@ class ModelCore(nn.Module):
                     tgt = torch.cat([tgt, to_add], dim = 0)
                     predicted_token = structure_vocab_map['<eos>']
                 
-                if 1 + len(tgt) + num_spots_to_fill == program_max_length:
+                if 1 + len(tgt) + num_spots_to_fill == self.max_program_length:
                     need_to_end = True
                     print("Need to end flag set")
             
             to_add = torch.tensor([[predicted_token]]).to(device)
+            
+            to_add_e = self.structure_embedding(to_add.int())
+            to_add_e = self.positional_encoding.encode_single(to_add_e, len(tgt))
             tgt = torch.cat([tgt, to_add], dim = 0)
-            tgt_e = self.structure_embedding(tgt.int())
-            tgt_e = self.positional_encoding(tgt_e)
+            tgt_e = torch.cat([tgt_e, to_add_e], dim = 0)
 
             if predicted_token == structure_vocab_map['<eos>']:
                 break
 
         # Then predict the constraints 
-        structure_preds = self.transformer_decoder(tgt_e, memory)
+        num_constraints = torch.sum(tgt == structure_vocab_map['c']).item()
         constraints = self.constraint_decoder.infer(
-            structure_preds, tgt, src_e, device, 
+            src_e, tgt_e, num_constraints, device, 
             guarantee_program = guarantee_program
         )
 
         program_structure = [structure_vocab[index] for index in tgt[1:-1]]
-        return program_structure, constraints.tolist()
+        return program_structure, constraints
     
     def loss(
         self, 

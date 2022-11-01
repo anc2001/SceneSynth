@@ -1,4 +1,3 @@
-from calendar import c
 from main.config import \
     constraint_types, direction_types, \
     structure_vocab_map, constraint_types_map, direction_types_map
@@ -8,7 +7,7 @@ import torch
 import torch.nn as nn
 
 class ConstraintDecoderModel(nn.Module):
-    def __init__(self, d_model : int, nhead : int, num_layers : int, max_num_objects : int):
+    def __init__(self, d_model : int, nhead : int, num_layers : int, max_num_constraints : int):
         # d_model: dimension of the model
         super().__init__()
         self.d_model = d_model
@@ -21,9 +20,9 @@ class ConstraintDecoderModel(nn.Module):
         )
         self.objects_or_tree = nn.Embedding(2, self.d_model) # Differentiate sequence from being from objects vs being from tree
         self.relative_position_embedding = nn.Embedding(4, self.d_model)
-        self.constraint_index_embedding = nn.Embedding(max_num_objects, self.d_model)
+        self.constraint_index_embedding = nn.Embedding(max_num_constraints, self.d_model)
 
-        self.pe = PositionalEncoding(d_model, max_len = 100)
+        self.pe = PositionalEncoding(d_model, max_len = 4 * max_num_constraints)
 
         self.transformer_encoder = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
@@ -67,7 +66,7 @@ class ConstraintDecoderModel(nn.Module):
         tgt_padding_mask,
         tgt_c, 
         tgt_c_padding_mask,
-        src_e,
+        src_e, # Objects 
         src_padding_mask,
         device
     ):
@@ -97,8 +96,8 @@ class ConstraintDecoderModel(nn.Module):
         # Create s_e, sequence embedding for constraint attributes 
         s_e = self.type_embedding(
             torch.Tensor([[constraint_types_map['<sos>']]]).long() # Start all with <sos> 
-        ).expand(-1, 8, -1) 
-        s_e_padding = torch.Tensor([[False]]).expand(8, -1) # Start all with false
+        ).expand(-1, batch_size, -1) 
+        s_e_padding = torch.Tensor([[False]]).expand(batch_size, -1) # Start all with false
         for c_idx in range(tgt_c.size(0)):
             c_e = torch.cat(
                 [
@@ -205,67 +204,78 @@ class ConstraintDecoderModel(nn.Module):
             torch.Tensor(direction_selections).to(device)
         )
     
-    def infer(self, decoded_output, tgt, src_e, device, guarantee_program=False):
-        structure_c_mask = tgt == structure_vocab_map['c']
-        only_constraint_heads = decoded_output[structure_c_mask] # done with tgt
-        n_c = only_constraint_heads.size(0)
-        types = torch.argmax(
-            self.constraint_type_selection(only_constraint_heads),
-            dim = 1
-        )
-
-        query_e = src_e[-1].expand(n_c, -1)
-        type_e = self.type_embedding(types.int())
-        object_selection_input = torch.cat(
-            [only_constraint_heads, type_e, query_e],
-            dim = 1
-        )
-        pointer_embeddings = self.object_selection(object_selection_input)
-
-        # Vectorize this
-        object_selections = []
-        for pointer_embedding in pointer_embeddings:
-            logits = torch.squeeze(torch.tensordot(src_e, pointer_embedding, dims = 1))
-            if guarantee_program:
-                logits[-1] = -float('inf') # Mask out logits for query object index 
-            
-            object_selection = torch.argmax(logits).item()
-            object_selections.append(object_selection)
-        object_selections = torch.Tensor(object_selections).long().to(device)
-
-        r_e = torch.squeeze(src_e, dim = 1)[object_selections.long()]
-        direction_selection_input = torch.cat([object_selection_input, r_e], dim = 1)
-        direction_selections = torch.argmax(
-            self.direction_selection(direction_selection_input),
-            dim = 1
-        )
-
-        if guarantee_program:
-            padding_directions = torch.full(
-                direction_selections.size(), 
-                direction_types_map['<pad>']
-            ).to(device)
-
-            is_location_constraint = torch.logical_or(
-                types == constraint_types_map['attach'],
-                types == constraint_types_map['reachable_by_arm']
-            )
-
-            direction_selections = torch.where(
-                is_location_constraint, 
-                direction_selections, 
-                padding_directions
-            )
-
-        query_object_indices = torch.full(types.size(), len(src_e) - 1).to(device)
-        constraints = torch.cat(
+    def infer(self, src_e, tgt_e, num_constraints, device,  guarantee_program=False):
+        context = torch.cat(
             [
-                torch.unsqueeze(types, dim = 1),
-                torch.unsqueeze(query_object_indices, dim = 1),
-                torch.unsqueeze(object_selections, dim = 1),
-                torch.unsqueeze(direction_selections, dim = 1)
-            ],
-            dim = 1
+                src_e + self.objects_or_tree(torch.Tensor([0]).long()), 
+                tgt_e + self.objects_or_tree(torch.Tensor([1]).long())
+            ], 
+            dim = 0
+        )
+        memory = self.transformer_encoder(context)
+
+        constraints = []
+        c_e = self.type_embedding(
+            torch.tensor([[constraint_types_map['<sos>']]]).int()
         )
 
-        return constraints.to(device)
+        constraints_left = num_constraints
+        relative_index = 0
+        absolute_index = 0
+        current_constraint = []
+        while constraints_left:
+            decoded_outputs = self.transformer_decoder(c_e, memory)
+            head = decoded_outputs[-1]
+            if relative_index == 0: # predict type 
+                logits = self.type_head(head)
+                predicted_token = torch.argmax(logits, dim = 1)
+                c_e_to_add = self.type_embedding(predicted_token)
+                predicted_token = predicted_token.item()
+            elif relative_index == 1:
+                predicted_token = len(src_e) - 1
+                c_e_to_add = src_e[predicted_token]
+            elif relative_index == 2: # predict reference object index
+                pointer_embedding = self.pointer_head(head)
+                logits = torch.tensordot(
+                    src_e[:, 0, :], 
+                    pointer_embedding[0], 
+                    dims = 1
+                )
+                if guarantee_program:
+                    logits[-1] = -float('inf')
+                
+                predicted_token = torch.argmax(logits)
+                predicted_token = predicted_token.item()
+                c_e_to_add = src_e[predicted_token]
+            elif relative_index == 3: # predict direction (if applicable)
+                if current_constraint[0] == constraint_types_map['attach'] or current_constraint[0] == constraint_types_map['reachable_by_arm']:
+                    logits = self.direction_head(head)
+                    predicted_token = torch.argmax(logits, dim = 1)
+                else:
+                    predicted_token = torch.Tensor([direction_types_map['<pad>']]).int()
+                c_e_to_add = self.direction_embedding(predicted_token)
+                predicted_token = predicted_token.item()
+            
+            c_e_to_add += self.relative_position_embedding(
+                torch.Tensor([relative_index]).int()
+            )
+            c_e_to_add += self.constraint_index_embedding(
+                torch.Tensor([num_constraints - constraints_left]).int()
+            )
+            c_e_to_add = self.pe.encode_single(c_e_to_add, absolute_index)
+            c_e = torch.cat(
+                [c_e, torch.unsqueeze(c_e_to_add, dim = 1)], 
+                dim = 0
+            )
+
+            absolute_index += 1
+            current_constraint.append(predicted_token)
+            if relative_index == 3:
+                relative_index = 0
+                constraints_left -= 1
+                constraints.append(current_constraint)
+                current_constraint = []
+            else:
+                relative_index += 1
+        
+        return constraints
