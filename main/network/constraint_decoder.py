@@ -1,3 +1,4 @@
+from calendar import c
 from main.config import \
     constraint_types, direction_types, \
     structure_vocab_map, constraint_types_map, direction_types_map
@@ -21,8 +22,6 @@ class ConstraintDecoderModel(nn.Module):
         self.objects_or_tree = nn.Embedding(2, self.d_model) # Differentiate sequence from being from objects vs being from tree
         self.relative_position_embedding = nn.Embedding(4, self.d_model)
         self.constraint_index_embedding = nn.Embedding(max_num_objects, self.d_model)
-        # 0 -> <pad>, 1 -> <mask>, 2 -> <sos>, 3 -> <eos> 
-        self.token_embedding = nn.Embedding(4, self.d_model, padding_idx=0) 
 
         self.pe = PositionalEncoding(d_model, max_len = 100)
 
@@ -72,6 +71,7 @@ class ConstraintDecoderModel(nn.Module):
         src_padding_mask,
         device
     ):
+        batch_size = tgt_e.size(1)
         context = torch.cat(
             [
                 src_e + self.objects_or_tree(torch.Tensor([0]).long()), 
@@ -95,8 +95,10 @@ class ConstraintDecoderModel(nn.Module):
         d_e = self.direction_embedding(tgt_c[:, :, 3].int())
 
         # Create s_e, sequence embedding for constraint attributes 
-        s_e = torch.Tensor() # Start all with <sos> 
-        s_e_padding = [] # Start all with false, guarantee to always have at least 1 constraint 
+        s_e = self.type_embedding(
+            torch.Tensor([[constraint_types_map['<sos>']]]).long() # Start all with <sos> 
+        ).expand(-1, 8, -1) 
+        s_e_padding = torch.Tensor([[False]]).expand(8, -1) # Start all with false
         for c_idx in range(tgt_c.size(0)):
             c_e = torch.cat(
                 [
@@ -113,8 +115,8 @@ class ConstraintDecoderModel(nn.Module):
             ) # broadcast over each batch 
             c_e += self.constraint_index_embedding(torch.Tensor([c_idx]).long())
             padding = torch.unsqueeze(tgt_c_padding_mask[c_idx], dim = 1).expand(-1, 4)
-            s_e = torch.cat([s_e, c_e], dim = 0) if len(s_e) else c_e
-            s_e_padding = torch.cat([s_e_padding, padding], dim = 1) if len(s_e_padding) else padding
+            s_e = torch.cat([s_e, c_e], dim = 0)
+            s_e_padding = torch.cat([s_e_padding, padding], dim = 1)
         
         s_e = self.pe(s_e)
 
@@ -133,7 +135,6 @@ class ConstraintDecoderModel(nn.Module):
         type_selections = []
         reference_selections = []
         direction_selections = []
-        batch_size = decoded_outputs.size(1)
         indices = torch.arange(decoded_outputs.size(0))
         indices = indices[indices % 4 != 1]
         for i in indices:
@@ -199,77 +200,10 @@ class ConstraintDecoderModel(nn.Module):
                     direction_selections = torch.unsqueeze(direction_selection, dim = 0)
                 
         return (
-            torch.Tensor(type_selections).to(device),
+            torch.Tensor(type_selections[:-1]).to(device),
             torch.Tensor(reference_selections).to(device),
             torch.Tensor(direction_selections).to(device)
         )
-    # def forward(
-    #     self, 
-    #     decoded_output,
-    #     tgt,
-    #     tgt_c,
-    #     tgt_c_padding_mask, 
-    #     src_e, 
-    #     src_padding_mask,
-    #     device
-    # ):
-    #     # Predict constraints autoregressively 
-    #     batch_size = tgt_c.size(0)
-    #     for batch_idx in range(batch_size):
-    #         pass
-
-    #     structure_c_mask = tgt == structure_vocab_map['c']
-    #     only_constraint_heads = decoded_output[structure_c_mask] # done with tgt
-
-    #     c_mask = ~tgt_c_padding_mask
-    #     type_selections = self.constraint_type_selection(only_constraint_heads) # number of constraints x number of types 
-        
-    #     # Use ground truth types and query objects
-    #     types = tgt_c[:, :, 0]
-    #     types = types[c_mask]
-    #     types = self.type_embedding(types.int())
-
-    #     q_e = torch.gather(
-    #         src_e,
-    #         0,
-    #         tgt_c[:, :, 1:2].expand(-1, -1, self.d_model).long()
-    #     )
-    #     q_e = q_e[c_mask]
-
-    #     object_selection_input = torch.cat([only_constraint_heads, types, q_e], dim = 1)
-    #     pointer_embedding = self.object_selection(object_selection_input) # number of constraints x d_model
-    #     # For each pointer embedding, what batch is it from? 
-    #     batch_reference_guide = torch.arange(tgt_c.shape[1]).expand(tgt_c.shape[0], -1)[c_mask]
-    #     n_c = batch_reference_guide.size(0)
-    #     s = src_e.size(0)
-    #     object_selections = torch.zeros([n_c, s])
-    #     # Way to vectorize this?? 
-    #     for embedding_idx, batch_idx in enumerate(batch_reference_guide):
-    #         logits = torch.tensordot(
-    #             src_e[:, batch_idx, :], 
-    #             pointer_embedding[embedding_idx], 
-    #             dims = 1
-    #         )
-    #         # Set all src padding as -infty so 0 during softmax 
-    #         logits[src_padding_mask[batch_idx]] = -float('inf')
-    #         object_selections[embedding_idx, :] = logits
-
-    #     # Use ground truth reference objects 
-    #     r_e = torch.gather(
-    #         src_e,
-    #         0,
-    #         tgt_c[:, :, 2:3].expand(-1, -1, self.d_model).long()
-    #     )
-    #     r_e = r_e[c_mask]
-
-    #     direction_selection_input = torch.cat([object_selection_input, r_e], dim = 1)
-    #     direction_selections = self.direction_selection(direction_selection_input)
-
-    #     return (
-    #         type_selections.to(device),
-    #         object_selections.to(device),
-    #         direction_selections.to(device)
-    #     )
     
     def infer(self, decoded_output, tgt, src_e, device, guarantee_program=False):
         structure_c_mask = tgt == structure_vocab_map['c']

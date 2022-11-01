@@ -102,7 +102,7 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             "direction_accuracy" : []
         }
     for vals in tqdm(dataloader):
-        src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask = vals
+        src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types = vals
         structure_preds, constraint_preds = model(
             src, src_padding_mask, 
             tgt, tgt_padding_mask,
@@ -118,7 +118,7 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             structure_preds, 
             constraint_preds, 
             tgt, tgt_padding_mask, 
-            tgt_c, tgt_c_padding_mask
+            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
         )
 
         if type == "train":
@@ -134,8 +134,8 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             direction_accuracy,
             total_accuracy
         ) = model.accuracy_fnc(
-            structure_preds, tgt, 
-            constraint_preds, tgt_c, tgt_c_padding_mask
+            structure_preds, constraint_preds,
+            tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
         )
 
         log = {
@@ -195,7 +195,7 @@ def main(args):
             d_model = config['architecture']['d_model'],
             nhead = config['architecture']['nhead'],
             num_layers= config['architecture']['num_layers'],
-            max_num_objects = 20,
+            max_num_objects = 50,
             loss_func=loss_factory(config['architecture']['loss'])
         )
     model.to(device)

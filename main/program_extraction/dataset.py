@@ -1,4 +1,4 @@
-from main.config import structure_vocab_map
+from main.config import structure_vocab_map, constraint_types_map
 from main.program_extraction.data_processing import read_program_data
 from main.common.utils import vectorize_scene
 
@@ -41,6 +41,7 @@ def collate_fn(samples):
         structure_max_length = max(len(program_tokens['structure']), structure_max_length)
         constraints_max_length = max(len(program_tokens['constraints']), constraints_max_length)
     
+    
     structure_max_length += 2
 
     object_representation_length = 7
@@ -52,6 +53,7 @@ def collate_fn(samples):
     tgt_padding_mask = np.array([])
     tgt_c = np.array([])
     tgt_c_padding_mask = np.array([])
+    tgt_c_padding_mask_types = np.array([])
 
     for sample in samples:
         scene, query_object = sample[0]
@@ -117,22 +119,38 @@ def collate_fn(samples):
 
         constraints_padding_mask = np.append(
             np.zeros(len(constraints)), 
-            np.ones(constraints_max_length - len(constraints))
+            np.ones(constraints_max_length - len(constraints) + 1)
         )
-        constraints = np.append(
-            constraints,
-            np.zeros([constraints_max_length - len(constraints), constraint_representation_length]),
+        constraints_padding_mask_types = np.append(
+            np.zeros(len(constraints) + 1), 
+            np.ones(constraints_max_length - len(constraints))  
+        )
+        constraints = np.concatenate(
+            [
+                constraints, 
+                np.array([[constraint_types_map['<eos>'], 0, 0, 0]]),
+                np.zeros([constraints_max_length - len(constraints), constraint_representation_length])
+            ], 
             axis = 0
         )
 
         if len(tgt_c_padding_mask):
             tgt_c_padding_mask = np.append(
                 tgt_c_padding_mask,
-                np.expand_dims(constraints_padding_mask, axis =1),
+                np.expand_dims(constraints_padding_mask, axis = 1),
                 axis = 1
             )
         else:
             tgt_c_padding_mask = np.expand_dims(constraints_padding_mask, axis = 1)
+        
+        if len(tgt_c_padding_mask_types):
+            tgt_c_padding_mask_types = np.append(
+                tgt_c_padding_mask_types,
+                np.expand_dims(constraints_padding_mask_types, axis = 1),
+                axis = 1
+            )
+        else:
+            tgt_c_padding_mask_types = np.expand_dims(constraints_padding_mask_types, axis = 1)
 
         if len(tgt_c):
             tgt_c = np.append(
@@ -153,6 +171,7 @@ def collate_fn(samples):
         torch.tensor(tgt_padding_mask).bool().to(device), 
         torch.tensor(tgt_c).float().to(device),
         torch.tensor(tgt_c_padding_mask).bool().to(device),
+        torch.tensor(tgt_c_padding_mask_types).bool().to(device)
     )
 
 class ProgramDataset(Dataset):

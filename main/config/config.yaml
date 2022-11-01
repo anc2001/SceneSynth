@@ -12,5 +12,5 @@ training:
   batch_size: 8
   lr: 0.003
   optimizer: adam
-  train_split: 0.01
+  train_split: 0.05
   val_split: 0.01

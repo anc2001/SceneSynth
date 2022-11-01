@@ -160,7 +160,7 @@ class ModelCore(nn.Module):
         self, 
         structure_preds, constraint_preds, 
         tgt, tgt_padding_mask, 
-        tgt_c, tgt_c_padding_mask
+        tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
     ):
         x_structure = torch.flatten(structure_preds, start_dim = 0, end_dim = 1)
         y_structure = torch.flatten(torch.roll(tgt, -1, dims = 0), start_dim = 0, end_dim = 1)
@@ -173,10 +173,11 @@ class ModelCore(nn.Module):
         )
         structure_loss *= padding_mask
 
+        # Last direction should need to pick 
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
         type_selections, object_selections, direction_selections = constraint_preds
 
-        types_loss = self.loss_fnc(type_selections[~tgt_c_padding_mask], constraints_flattened[:, 0].long())
+        types_loss = self.loss_fnc(type_selections[~tgt_c_padding_mask_types], tgt_c[~tgt_c_padding_mask_types][:, 0].long())
         objects_loss = self.loss_fnc(object_selections[~tgt_c_padding_mask], constraints_flattened[:, 2].long())
         directions_loss  = self.loss_fnc(direction_selections[~tgt_c_padding_mask], constraints_flattened[:, 3].long())
         # mask orientation constraints from directions loss 
@@ -186,15 +187,21 @@ class ModelCore(nn.Module):
         )
         directions_loss *= directions_mask
 
-        return torch.mean(structure_loss) + torch.mean(types_loss + objects_loss + directions_loss)
+        return torch.mean(structure_loss) + torch.mean(types_loss) + torch.mean(objects_loss + directions_loss)
     
     def accuracy_fnc(
         self, 
-        structure_preds, tgt, 
-        constraint_preds, tgt_c, tgt_c_padding_mask
+        structure_preds, constraint_preds,
+        tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
     ):
         type_selections, object_selections, direction_selections = constraint_preds
-        n_c = type_selections.size(0)
+        type_selections = type_selections[~tgt_c_padding_mask_types]
+        object_selections = object_selections[~tgt_c_padding_mask]
+        direction_selections = direction_selections[~tgt_c_padding_mask]
+
+        n_c_types = type_selections.size(0)
+        n_c = object_selections.size(0)
+        constraints_flattened_types = tgt_c[~tgt_c_padding_mask_types]
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
         padding_mask = ~torch.flatten(
             tgt == structure_vocab_map['<pad>'],
@@ -232,9 +239,9 @@ class ModelCore(nn.Module):
         total_correct_tokens += total_structure_correct 
 
         # Constraint type accuracy 
-        total_type_tokens = n_c
+        total_type_tokens = n_c_types
         total_type_correct = torch.sum(
-            torch.argmax(type_selections, dim = 1) == constraints_flattened[:, 0]
+            torch.argmax(type_selections, dim = 1) == constraints_flattened_types[:, 0]
         ).item()
         type_accuracy = total_type_correct / total_type_tokens
         total_tokens += total_type_tokens
