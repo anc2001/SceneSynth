@@ -16,7 +16,7 @@ import os
 import wandb
 from argparse import ArgumentParser
 
-def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wandb = False):
+def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, with_wandb = False):
     print("Getting network feedback")
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
@@ -32,6 +32,8 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wa
         inferred_tokens = infer_program(model, scene, query_object, device)
         # Is program valid 
         if verify_program(inferred_tokens, len(scene.objects)):
+            print(inferred_tokens['structure'])
+            print(inferred_tokens['constraints'])
             data_entry.append("no")
             data_entry.append("")
             data_entry.append("")
@@ -54,7 +56,7 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wa
         program.evaluate(scene, query_object)
         fig = program.print_program(scene, query_object)
 
-        if wandb:
+        if with_wandb:
             wandb.log({tag + "_inferred": fig})
         else:
             pass
@@ -64,12 +66,12 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wa
         program.evaluate(scene, query_object)
         fig = program.print_program(scene, query_object)  
     
-        if wandb:
+        if with_wandb:
             wandb.log({tag + "_ground_truth": fig})
         else:
             pass
     
-    if wandb:
+    if with_wandb:
         table = wandb.Table(data=data, columns=columns)
         wandb.log({base_tag : table})
 
@@ -155,7 +157,6 @@ def iterate_through_data(model, dataloader, device, type, with_wandb = False, op
             "object_accuracy" : object_accuracy,
             "direction_accuracy" : direction_accuracy
         }
-        print(log)
 
         if with_wandb and type == "train":
             wandb.log({"train" : log})
@@ -271,20 +272,10 @@ def overfit_to_one(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
     index = 467
-
-    # for i in range(500):
-    #     (scene, query_object), program_tokens = dataset[i]
-    #     print(f"{i}: {len(scene.objects)} {program_tokens['structure']}")
     
     (scene, query_object), program_tokens = dataset[index]
     print(program_tokens['structure'])
     print(program_tokens['constraints'])
-
-    # program = ProgramTree()
-    # program.from_tokens(program_tokens)
-    # program.evaluate(scene, query_object)
-    # fig = program.print_program(scene, query_object)
-    # fig.savefig("/Users/adrianchang/CS/research/SceneSynth/tree.png")
     
     single_point_dataset = torch.utils.data.Subset(dataset, [index])
     single_point_dataloader = get_dataloader(single_point_dataset, config['training']['batch_size'])
@@ -305,7 +296,7 @@ def overfit_to_one(args):
         config['training']['lr']
     )
 
-    while True:
+    for _ in range(1000):
         model.train()
         log = iterate_through_data(
             model, single_point_dataloader, device, "train", 
@@ -314,15 +305,21 @@ def overfit_to_one(args):
 
         if not args.with_wandb:
             print(log)
-        
-        # get_network_feedback(
-        #     model, single_point_dataset, 
-        #     f"examples/train/epoch_{epoch}",
-        #     device,
-        #     num_examples = 1
-        # )
+    
+    log = iterate_through_data(
+        model, single_point_dataloader, device, "train", 
+        optimizer = optimizer, with_wandb = args.with_wandb
+    )
+    get_network_feedback(
+        model, single_point_dataset, 
+        "examples",
+        device,
+        num_examples = 1,
+        with_wandb = args.with_wandb
+    )
 
 if __name__ == '__main__':
     args = parseArguments()
     # main(args)
     overfit_to_one(args)
+    # use_overfit_model(args)

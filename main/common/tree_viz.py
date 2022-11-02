@@ -52,7 +52,7 @@ def draw_graph(graph, label_dict, object_dict, figsize=(15, 15)):
             [xa - icon_center, ya - (icon_center), icon_size, icon_size], 
             title= label
         )
-        a.imshow(graph.nodes[n]["image"])
+        a.imshow(graph.nodes[n]["img"])
         a.axis("off")
     return fig
 
@@ -77,14 +77,14 @@ def visualize_program(program_tree, scene, query_object):
             label = "\n".join(label)
             graph.add_node(
                 id, node_id=id, type='c', 
-                constraint = label, image=image
+                constraint = label, img = image
             )
 
             return id + 1
         else:
             image = convert_mask_to_image(node.mask, scene_image)
             graph.add_node(
-                id, node_id= id, type = node.type, image = image
+                id, node_id= id, type = node.type, img = image
             )
 
             left_id = id + 1
@@ -98,7 +98,7 @@ def visualize_program(program_tree, scene, query_object):
 
     add_nodes_recurs(program_tree.root, 0)
     final_image = convert_mask_to_image(program_tree.mask, scene_image)
-    graph.add_node(-1, node_id = -1, type = 'final', image = final_image)
+    graph.add_node(-1, node_id = -1, type = 'final', img = final_image)
     graph.add_edge(-1, 0)
 
     label_dict = {}

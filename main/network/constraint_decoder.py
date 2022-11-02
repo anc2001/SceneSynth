@@ -269,7 +269,7 @@ class ConstraintDecoderModel(nn.Module):
             )
 
             absolute_index += 1
-            current_constraint.append(predicted_token)
+            current_constraint.append(int(predicted_token))
             if relative_index == 3:
                 relative_index = 0
                 constraints_left -= 1

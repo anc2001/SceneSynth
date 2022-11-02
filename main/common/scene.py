@@ -128,8 +128,8 @@ class Scene():
         for object in self.objects:
             if len(object_list):
                 object_list = np.append(
-                    object.vectorize(self.objects[0]), 
                     object_list, 
+                    object.vectorize(self.objects[0]), 
                     axis = 0
                 )
             else:

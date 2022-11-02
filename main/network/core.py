@@ -135,12 +135,13 @@ class ModelCore(nn.Module):
             
             predicted_token = torch.argmax(logits).item()
 
+            if predicted_token == structure_vocab_map['c']:
+                num_spots_to_fill -= 1
+            else:
+                num_spots_to_fill += 1
+
             # guarantee program 
             if guarantee_program:
-                if predicted_token == structure_vocab_map['c']:
-                    num_spots_to_fill -= 1
-                else:
-                    num_spots_to_fill += 1
                 if num_spots_to_fill == 0:
                     to_add = torch.tensor([[predicted_token]]).to(device)
                     tgt = torch.cat([tgt, to_add], dim = 0)
@@ -255,31 +256,46 @@ class ModelCore(nn.Module):
 
         # Constraint type accuracy 
         total_type_tokens = n_c_types
-        total_type_correct = torch.sum(
-            torch.argmax(type_selections, dim = 1) == constraints_flattened_types[:, 0]
-        ).item()
+        pred = torch.argmax(type_selections, dim = 1)
+        gt = constraints_flattened_types[:, 0]
+        total_type_correct = torch.sum(pred == gt).item()
 
         type_accuracy = total_type_correct / total_type_tokens
+        
+        # print(f"types_pred: {pred}")
+        # print(f"types_gt: {gt}")
+        # print(f"accuracy: {type_accuracy}")
+
         total_tokens += total_type_tokens
         total_correct_tokens += total_type_correct 
 
         # Object selection accuracy 
         total_object_tokens = n_c
-        total_object_correct = torch.sum(
-            torch.argmax(object_selections, dim = 1) == constraints_flattened[:, 2]
-        ).item()
+        pred = torch.argmax(object_selections, dim = 1)
+        gt = constraints_flattened[:, 2]
+        total_object_correct = torch.sum(pred == gt).item()
 
         object_accuracy = total_object_correct / total_object_tokens
+        
+        # print(f"objects_pred: {pred}")
+        # print(f"objects_gt: {gt}")
+        # print(f"accuracy: {object_accuracy}")
+
         total_tokens += total_object_tokens
         total_correct_tokens += total_object_correct 
 
         # Direction selection accuracy 
         total_direction_tokens = torch.sum(directions_mask).item()
-        total_direction_correct = torch.sum(
-            (torch.argmax(direction_selections, dim = 1) == constraints_flattened[:, 3]) * directions_mask
-        ).item()
+        pred = torch.argmax(direction_selections, dim = 1)
+        gt = constraints_flattened[:, 3]
+        total_direction_correct = torch.sum((pred == gt) * directions_mask).item()
 
         direction_accuracy = total_direction_correct / total_direction_tokens
+
+        # print(f"directions_pred: {pred}")
+        # print(f"directions_gt: {gt}")
+        # print(f"accuracy: {direction_accuracy}")
+
         total_tokens += total_direction_tokens
         total_correct_tokens += total_direction_correct 
 

@@ -21,15 +21,18 @@ def verify_program(tokens, query_idx):
         type = constraint[0]
         if not query_idx == constraint[1]:
             print("Query index is invalid")
+            print(constraint)
             return False
         if query_idx == constraint[2]:
             print("Reference index is invalid")
+            print(constraint)
             return False
         orientation_flag = type == constraint_types_map['align']
         orientation_flag |= type == constraint_types_map['face']
         direction_pad_flag = constraint[3] == direction_types_map['<pad>']
         if orientation_flag != direction_pad_flag:
             print("Type and directions don't match")
+            print(constraint)
             return False
     
     def verify_tree(sequence):
@@ -57,9 +60,9 @@ class Node():
     self.mask -> mask at the current node
     self.constraint -> only applicable if leaf node
     """
-    def __init__(self, type, constraint = None) -> None:
+    def __init__(self, type, constraint = []) -> None:
         self.type = type
-        self.constraint = constraint
+        self.constraint = [int(val) for val in constraint]
     
     def __len__(self):
         if self.is_leaf():
