@@ -42,7 +42,7 @@ def collate_fn(samples):
         constraints_max_length = max(len(program_tokens['constraints']), constraints_max_length)
     
     
-    structure_max_length += 1
+    structure_max_length += 2
 
     object_representation_length = 7
     constraint_representation_length = 4
@@ -103,7 +103,8 @@ def collate_fn(samples):
         structure_sequence = np.concatenate(
             [
                 [structure_vocab_map['<sos>']],
-                structure_sequence
+                structure_sequence,
+                [structure_vocab_map['<eos>']]
             ]
         )
 

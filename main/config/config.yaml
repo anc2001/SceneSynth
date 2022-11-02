@@ -9,7 +9,7 @@ architecture:
 
 training:
   epochs: 5
-  batch_size: 64
+  batch_size: 4
   lr: 0.0003
   optimizer: adam
   train_split: 0.8

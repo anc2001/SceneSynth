@@ -181,15 +181,10 @@ class ModelCore(nn.Module):
     ):
         y_structure_pred = torch.flatten(structure_preds, start_dim = 0, end_dim = 1)
         gt = torch.clone(tgt)
-        gt[0] = torch.Tensor([[structure_vocab_map['<eos>']]]).expand(-1, tgt.size(1))
         y_structure_gt = torch.flatten(torch.roll(gt, -1, dims = 0), start_dim = 0, end_dim = 1)
         structure_loss = self.loss_fnc(y_structure_pred, y_structure_gt.long())
         # mask padding from structure loss 
-        padding_mask = ~torch.flatten(
-            tgt == structure_vocab_map['<pad>'],
-            start_dim = 0,
-            end_dim = 1
-        )
+        padding_mask = ~(y_structure_gt == structure_vocab_map['<pad>'])
         structure_loss *= padding_mask
 
         # Last direction should need to pick 
@@ -220,18 +215,12 @@ class ModelCore(nn.Module):
         total_correct_tokens = 0
 
         # Structure accuracy 
-        padding_mask = ~torch.flatten(
-            tgt == structure_vocab_map['<pad>'],
-            start_dim = 0,
-            end_dim = 1
-        )
-        total_structure_tokens = torch.sum(padding_mask).item()
-
         gt = torch.clone(tgt)
-        gt[0] = torch.Tensor([[structure_vocab_map['<eos>']]]).expand(-1, tgt.size(1))
-
         pred = torch.flatten(torch.argmax(structure_preds, dim = 2), start_dim = 0, end_dim = 1)
         gt = torch.flatten(torch.roll(gt, -1, dims = 0), start_dim = 0, end_dim = 1).int()
+        padding_mask = ~(gt == structure_vocab_map['<pad>'])
+
+        total_structure_tokens = torch.sum(padding_mask).item()
         total_structure_correct = torch.sum((pred == gt) * padding_mask).item()
 
         structure_accuracy = total_structure_correct / total_structure_tokens

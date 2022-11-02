@@ -255,7 +255,18 @@ def main(args):
                 device
             )
     
-    iterate_through_data(model, test_dataloader, device, "test", with_wandb = args.with_wandb)
+    log = iterate_through_data(model, test_dataloader, device, "test", with_wandb = args.with_wandb)
+    if args.with_wandb:
+        cols = []
+        data = []
+        for key, value  in log.item():
+            cols.append(key)
+            data.append(value)
+        table = wandb.Table(data=data, columns=cols)
+        wandb.log({"test_summary" : table})
+    else:
+        print(log)
+    
     model_save = os.path.join(data_filepath, "model.pt")
     save_model(model, model_save)
 
