@@ -252,14 +252,15 @@ def main(args):
             get_network_feedback(
                 model, val_dataset,
                 f"examples/val/epoch_{epoch}",
-                device
+                device,
+                with_wandb = args.with_wandb
             )
     
     log = iterate_through_data(model, test_dataloader, device, "test", with_wandb = args.with_wandb)
     if args.with_wandb:
         cols = []
         data = []
-        for key, value  in log.item():
+        for key, value  in log.items():
             cols.append(key)
             data.append(value)
         table = wandb.Table(data=data, columns=cols)
