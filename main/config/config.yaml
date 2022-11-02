@@ -2,7 +2,7 @@ project: toy_test
 name: overfit_to_one
 
 architecture:
-  d_model: 128
+  d_model: 64
   nhead: 4
   num_layers: 2
   loss: cross_entropy
@@ -10,7 +10,7 @@ architecture:
 training:
   epochs: 10
   batch_size: 1
-  lr: 0.003
+  lr: 0.0003
   optimizer: adam
   train_split: 0.05
   val_split: 0.01

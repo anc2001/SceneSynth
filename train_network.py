@@ -92,7 +92,7 @@ def infer_program(model, scene, query_object, device, guarantee_program=False):
 
         return tokens
 
-def iterate_through_data(model, dataloader, device, type, wandb = False, optimizer=None):
+def iterate_through_data(model, dataloader, device, type, with_wandb = False, optimizer=None):
     total_log = {
             "loss" : [],
             "accuracy" : [],
@@ -101,26 +101,34 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             "object_accuracy" : [],
             "direction_accuracy" : []
         }
-    for vals in tqdm(dataloader):
-        src, src_padding_mask, tgt, tgt_padding_mask, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types = vals
-        structure_preds, constraint_preds = model(
+    
+    # for vals in tqdm(dataloader):
+    for vals in dataloader:
+        # Extract vals from dataloader 
+        (
             src, src_padding_mask, 
-            tgt, tgt_padding_mask,
-            tgt_c, tgt_c_padding_mask,
-            device
-        )
+            tgt, tgt_padding_mask, tgt_fill_counter, 
+            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
+        ) = vals
 
         if type == "train":
             optimizer.zero_grad()
-        
+
+        structure_preds, constraint_preds = model(
+            src, src_padding_mask, 
+            tgt, tgt_padding_mask, tgt_fill_counter,
+            tgt_c, tgt_c_padding_mask, 
+            device
+        )
+
         # Compute Loss
-        loss = model.loss(
-            structure_preds, 
-            constraint_preds, 
+        loss = model.loss(  
+            structure_preds,          
+            constraint_preds,
             tgt, tgt_padding_mask, 
             tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
         )
-
+        
         if type == "train":
             # Backpropagation 
             loss.backward()
@@ -134,7 +142,8 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             direction_accuracy,
             total_accuracy
         ) = model.accuracy_fnc(
-            structure_preds, constraint_preds,
+            structure_preds, 
+            constraint_preds,
             tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
         )
 
@@ -146,7 +155,9 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
             "object_accuracy" : object_accuracy,
             "direction_accuracy" : direction_accuracy
         }
-        if wandb and type == "train":
+        print(log)
+
+        if with_wandb and type == "train":
             wandb.log({"train" : log})
         
         for key in log.keys():
@@ -156,7 +167,7 @@ def iterate_through_data(model, dataloader, device, type, wandb = False, optimiz
 
 def parseArguments():
     parser = ArgumentParser()
-    parser.add_argument('--wandb', type=bool, default=False, 
+    parser.add_argument('--with_wandb', action="store_true",
         help="enables wandb run")
     parser.add_argument('--config', type=str, default = os.path.join(os.path.dirname(__file__), 'main/config/config.yaml'), 
         help="config to use for run")
@@ -167,7 +178,7 @@ def parseArguments():
 
 def main(args):
     config = load_config(args.config)
-    if args.wandb:
+    if args.with_wandb:
         wandb.init(
             project = config['project'],
             name = config['name'],
@@ -207,7 +218,7 @@ def main(args):
     )
 
     # Training and validation loop 
-    if args.wandb:
+    if args.with_wandb:
         wandb.watch(model)
     
     epochs = config['training']['epochs']
@@ -216,9 +227,9 @@ def main(args):
         model.train()
         log = iterate_through_data(
             model, train_dataloader, device, "train", 
-            optimizer = optimizer, wandb = args.wandb
+            optimizer = optimizer, with_wandb = args.with_wandb
         )
-        if not args.wandb:
+        if not args.with_wandb:
             print(log)
         
         get_network_feedback(
@@ -231,9 +242,9 @@ def main(args):
         with torch.inference_mode():
             log = iterate_through_data(
                 model, val_dataloader, device, "val", 
-                wandb = args.wandb
+                with_wandb = args.with_wandb
             )
-            if args.wandb:
+            if args.with_wandb:
                 wandb.log({"val" : log})
             else:
                 print(log)
@@ -244,13 +255,13 @@ def main(args):
                 device
             )
     
-    iterate_through_data(model, test_dataloader, device, "test", wandb = args.wandb)
+    iterate_through_data(model, test_dataloader, device, "test", with_wandb = args.with_wandb)
     model_save = os.path.join(data_filepath, "model.pt")
     save_model(model, model_save)
 
 def overfit_to_one(args):
     config = load_config(args.config)
-    if args.wandb:
+    if args.with_wandb:
         wandb.init(
             project = config['project'],
             name = config['name'],
@@ -259,12 +270,15 @@ def overfit_to_one(args):
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
-    index = 182
+    index = 467
+
     # for i in range(500):
     #     (scene, query_object), program_tokens = dataset[i]
     #     print(f"{i}: {len(scene.objects)} {program_tokens['structure']}")
     
-    # (scene, query_object), program_tokens = dataset[index]
+    (scene, query_object), program_tokens = dataset[index]
+    print(program_tokens['structure'])
+    print(program_tokens['constraints'])
 
     # program = ProgramTree()
     # program.from_tokens(program_tokens)
@@ -273,7 +287,7 @@ def overfit_to_one(args):
     # fig.savefig("/Users/adrianchang/CS/research/SceneSynth/tree.png")
     
     single_point_dataset = torch.utils.data.Subset(dataset, [index])
-    single_point_dataloader = get_dataloader(single_point_dataset, 1)
+    single_point_dataloader = get_dataloader(single_point_dataset, config['training']['batch_size'])
 
     model = ModelCore(
         d_model = config['architecture']['d_model'],
@@ -291,22 +305,22 @@ def overfit_to_one(args):
         config['training']['lr']
     )
 
-    epochs = 200
-    for epoch in range(epochs):
+    while True:
         model.train()
         log = iterate_through_data(
             model, single_point_dataloader, device, "train", 
-            optimizer = optimizer, wandb = args.wandb
+            optimizer = optimizer, with_wandb = args.with_wandb
         )
-        if not args.wandb:
+
+        if not args.with_wandb:
             print(log)
         
-        get_network_feedback(
-            model, single_point_dataset, 
-            f"examples/train/epoch_{epoch}",
-            device,
-            num_examples = 1
-        )
+        # get_network_feedback(
+        #     model, single_point_dataset, 
+        #     f"examples/train/epoch_{epoch}",
+        #     device,
+        #     num_examples = 1
+        # )
 
 if __name__ == '__main__':
     args = parseArguments()

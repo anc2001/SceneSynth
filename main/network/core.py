@@ -20,12 +20,12 @@ class ModelCore(nn.Module):
             max_program_length : int,
             loss_func
         ):
-        # d_model: dimension of the model
-        # nhead: number of heads in the multiheadattention models
         super().__init__()
         self.d_model = d_model
         self.nhead = nhead
         self.max_program_length = max_program_length
+        self.loss_fnc = loss_func
+
         self.object_encoder = ObjectEncoderModel(
             d_model=self.d_model,
             num_obj_categories=len(object_types) + 1, 
@@ -35,11 +35,12 @@ class ModelCore(nn.Module):
             self.d_model, 
             structure_vocab_map['<pad>']
         )
+        self.to_fill_embedding = nn.Embedding(
+            max_program_length,
+            self.d_model
+        )
 
         self.positional_encoding = PositionalEncoding(self.d_model, max_len = max_num_objects)
-        self.structure_head = nn.Linear(self.d_model, len(structure_vocab))
-        self.constraint_decoder = ConstraintDecoderModel(self.d_model, nhead, num_layers, max_program_length)
-        self.loss_fnc = loss_func
 
         self.transformer_encoder = nn.TransformerEncoder(
             nn.TransformerEncoderLayer(
@@ -58,10 +59,14 @@ class ModelCore(nn.Module):
             num_layers=num_layers
         )
 
+        self.structure_head = nn.Linear(self.d_model, len(structure_vocab))
+
+        self.constraint_decoder = ConstraintDecoderModel(self.d_model, nhead, num_layers, max_program_length)
+
     def forward(
         self, 
         src, src_padding_mask, 
-        tgt, tgt_padding_mask,  
+        tgt, tgt_padding_mask, tgt_fill_counter,
         tgt_c, tgt_c_padding_mask,
         device
     ):
@@ -75,7 +80,10 @@ class ModelCore(nn.Module):
 
         tgt_e = self.structure_embedding(tgt.int())
         tgt_e = self.positional_encoding(tgt_e)
+        tgt_fill_counter_e = self.to_fill_embedding(tgt_fill_counter.int())
+        tgt_e += tgt_fill_counter_e
 
+        # Structure prediction 
         tgt_mask = generate_square_subsequent_mask(tgt.size()[0], device)
         tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
         tgt_mask = tgt_mask.expand(src.shape[1] * self.nhead, -1, -1)
@@ -89,6 +97,7 @@ class ModelCore(nn.Module):
         )
         structure_preds = self.structure_head(decoded_output)
 
+        # Constraint attribute prediction 
         constraint_preds = self.constraint_decoder(
             tgt_e, tgt_padding_mask, 
             tgt_c, tgt_c_padding_mask,
@@ -108,6 +117,7 @@ class ModelCore(nn.Module):
         tgt = torch.tensor([[structure_vocab_map['<sos>']]]).to(device)
         tgt_e = self.structure_embedding(tgt.int())
         tgt_e = self.positional_encoding(tgt_e)
+        tgt_e += self.to_fill_embedding(torch.tensor([1]).int())
 
         # guarantee program 
         # Base mask with <sos>, <eos>, and <pad> masked out 
@@ -144,6 +154,7 @@ class ModelCore(nn.Module):
             
             to_add_e = self.structure_embedding(to_add.int())
             to_add_e = self.positional_encoding.encode_single(to_add_e, len(tgt))
+            to_add_e += self.to_fill_embedding(torch.tensor([num_spots_to_fill]).int())
             tgt = torch.cat([tgt, to_add], dim = 0)
             tgt_e = torch.cat([tgt_e, to_add_e], dim = 0)
 
@@ -162,13 +173,16 @@ class ModelCore(nn.Module):
     
     def loss(
         self, 
-        structure_preds, constraint_preds, 
+        structure_preds, 
+        constraint_preds, 
         tgt, tgt_padding_mask, 
         tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
     ):
-        x_structure = torch.flatten(structure_preds, start_dim = 0, end_dim = 1)
-        y_structure = torch.flatten(torch.roll(tgt, -1, dims = 0), start_dim = 0, end_dim = 1)
-        structure_loss = self.loss_fnc(x_structure, y_structure.long())
+        y_structure_pred = torch.flatten(structure_preds, start_dim = 0, end_dim = 1)
+        gt = torch.clone(tgt)
+        gt[0] = torch.Tensor([[structure_vocab_map['<eos>']]]).expand(-1, tgt.size(1))
+        y_structure_gt = torch.flatten(torch.roll(gt, -1, dims = 0), start_dim = 0, end_dim = 1)
+        structure_loss = self.loss_fnc(y_structure_pred, y_structure_gt.long())
         # mask padding from structure loss 
         padding_mask = ~torch.flatten(
             tgt == structure_vocab_map['<pad>'],
@@ -191,13 +205,39 @@ class ModelCore(nn.Module):
         )
         directions_loss *= directions_mask
 
-        return torch.mean(structure_loss) + torch.mean(types_loss) + torch.mean(objects_loss + directions_loss)
-    
+        # loss = 
+        loss = torch.mean(structure_loss) + torch.mean(types_loss) + torch.mean(objects_loss + directions_loss)
+        return loss
+
     def accuracy_fnc(
         self, 
-        structure_preds, constraint_preds,
+        structure_preds, 
+        constraint_preds,
         tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
     ):
+        total_tokens = 0
+        total_correct_tokens = 0
+
+        # Structure accuracy 
+        padding_mask = ~torch.flatten(
+            tgt == structure_vocab_map['<pad>'],
+            start_dim = 0,
+            end_dim = 1
+        )
+        total_structure_tokens = torch.sum(padding_mask).item()
+
+        gt = torch.clone(tgt)
+        gt[0] = torch.Tensor([[structure_vocab_map['<eos>']]]).expand(-1, tgt.size(1))
+
+        pred = torch.flatten(torch.argmax(structure_preds, dim = 2), start_dim = 0, end_dim = 1)
+        gt = torch.flatten(torch.roll(gt, -1, dims = 0), start_dim = 0, end_dim = 1).int()
+        total_structure_correct = torch.sum((pred == gt) * padding_mask).item()
+
+        structure_accuracy = total_structure_correct / total_structure_tokens
+        total_tokens += total_structure_tokens
+        total_correct_tokens += total_structure_correct 
+
+        # Constraint attribute accuracy 
         type_selections, object_selections, direction_selections = constraint_preds
         type_selections = type_selections[~tgt_c_padding_mask_types]
         object_selections = object_selections[~tgt_c_padding_mask]
@@ -207,46 +247,18 @@ class ModelCore(nn.Module):
         n_c = object_selections.size(0)
         constraints_flattened_types = tgt_c[~tgt_c_padding_mask_types]
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
-        padding_mask = ~torch.flatten(
-            tgt == structure_vocab_map['<pad>'],
-            start_dim = 0,
-            end_dim = 1
-        )
+
         directions_mask = torch.logical_or(
             constraints_flattened[:, 0] == constraint_types_map['attach'],
             constraints_flattened[:, 0] == constraint_types_map['reachable_by_arm']
         )
-
-        total_tokens = 0
-        total_correct_tokens = 0
-
-        # Structure accuracy 
-        total_structure_tokens = torch.sum(padding_mask).item()
-        total_structure_correct = torch.sum(
-            (
-                torch.flatten(
-                    torch.argmax(structure_preds, dim = 2),
-                    start_dim = 0,
-                    end_dim = 1
-                )
-            ==
-                torch.flatten(
-                    torch.roll(tgt, -1, dims = 0),
-                    start_dim = 0,
-                    end_dim = 1
-                )
-            )
-            * padding_mask
-        ).item()
-        structure_accuracy = total_structure_correct / total_structure_tokens
-        total_tokens += total_structure_tokens
-        total_correct_tokens += total_structure_correct 
 
         # Constraint type accuracy 
         total_type_tokens = n_c_types
         total_type_correct = torch.sum(
             torch.argmax(type_selections, dim = 1) == constraints_flattened_types[:, 0]
         ).item()
+
         type_accuracy = total_type_correct / total_type_tokens
         total_tokens += total_type_tokens
         total_correct_tokens += total_type_correct 
@@ -256,6 +268,7 @@ class ModelCore(nn.Module):
         total_object_correct = torch.sum(
             torch.argmax(object_selections, dim = 1) == constraints_flattened[:, 2]
         ).item()
+
         object_accuracy = total_object_correct / total_object_tokens
         total_tokens += total_object_tokens
         total_correct_tokens += total_object_correct 
@@ -265,6 +278,7 @@ class ModelCore(nn.Module):
         total_direction_correct = torch.sum(
             (torch.argmax(direction_selections, dim = 1) == constraints_flattened[:, 3]) * directions_mask
         ).item()
+
         direction_accuracy = total_direction_correct / total_direction_tokens
         total_tokens += total_direction_tokens
         total_correct_tokens += total_direction_correct 

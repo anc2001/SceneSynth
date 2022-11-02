@@ -42,7 +42,7 @@ def collate_fn(samples):
         constraints_max_length = max(len(program_tokens['constraints']), constraints_max_length)
     
     
-    structure_max_length += 2
+    structure_max_length += 1
 
     object_representation_length = 7
     constraint_representation_length = 4
@@ -51,6 +51,7 @@ def collate_fn(samples):
     src_padding_mask = np.array([])
     tgt = np.array([])
     tgt_padding_mask = np.array([])
+    tgt_fill_counter = np.array([])
     tgt_c = np.array([])
     tgt_c_padding_mask = np.array([])
     tgt_c_padding_mask_types = np.array([])
@@ -90,11 +91,19 @@ def collate_fn(samples):
 
         structure_sequence = program['structure']
         structure_sequence = np.array([structure_vocab_map[word] for word in structure_sequence])
+        to_fill_counter = [1]
+        for token in structure_sequence:
+            prev_counter = to_fill_counter[-1]
+            if token == structure_vocab_map['c']:
+                counter = prev_counter - 1
+            else:
+                counter = prev_counter + 1
+            to_fill_counter.append(counter)
+
         structure_sequence = np.concatenate(
             [
                 [structure_vocab_map['<sos>']],
-                structure_sequence,
-                [structure_vocab_map['<eos>']]
+                structure_sequence
             ]
         )
 
@@ -106,6 +115,11 @@ def collate_fn(samples):
             )
         )
 
+        to_fill_counter = np.append(
+            to_fill_counter,
+            np.zeros(structure_max_length - len(to_fill_counter))
+        )
+
         if len(tgt):
             tgt = np.append(
                 tgt,
@@ -114,6 +128,15 @@ def collate_fn(samples):
             )
         else:
             tgt = np.expand_dims(structure_sequence, axis = 1)
+        
+        if len(tgt_fill_counter):
+            tgt_fill_counter = np.append(
+                tgt_fill_counter,
+                np.expand_dims(to_fill_counter, axis = 1),
+                axis = 1
+            )
+        else:
+            tgt_fill_counter = np.expand_dims(to_fill_counter, axis = 1)
 
         constraints = program['constraints']
 
@@ -169,6 +192,7 @@ def collate_fn(samples):
         torch.tensor(src_padding_mask).bool().to(device), 
         torch.tensor(tgt).float().to(device),
         torch.tensor(tgt_padding_mask).bool().to(device), 
+        torch.tensor(tgt_fill_counter).to(device),
         torch.tensor(tgt_c).float().to(device),
         torch.tensor(tgt_c_padding_mask).bool().to(device),
         torch.tensor(tgt_c_padding_mask_types).bool().to(device)
