@@ -208,6 +208,7 @@ def main(args):
             nhead = config['architecture']['nhead'],
             num_layers= config['architecture']['num_layers'],
             max_num_objects = 50,
+            max_program_length= 30,
             loss_func=loss_factory(config['architecture']['loss'])
         )
     model.to(device)
@@ -230,13 +231,15 @@ def main(args):
             model, train_dataloader, device, "train", 
             optimizer = optimizer, with_wandb = args.with_wandb
         )
+
         if not args.with_wandb:
             print(log)
         
         get_network_feedback(
             model, train_dataset, 
             f"examples/train/epoch_{epoch}",
-            device
+            device,
+            with_wandb = args.with_wandb
         )
 
         model.eval()
@@ -306,10 +309,6 @@ def overfit_to_one(args):
         if not args.with_wandb:
             print(log)
     
-    log = iterate_through_data(
-        model, single_point_dataloader, device, "train", 
-        optimizer = optimizer, with_wandb = args.with_wandb
-    )
     get_network_feedback(
         model, single_point_dataset, 
         "examples",
@@ -322,4 +321,3 @@ if __name__ == '__main__':
     args = parseArguments()
     # main(args)
     overfit_to_one(args)
-    # use_overfit_model(args)
