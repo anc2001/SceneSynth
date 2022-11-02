@@ -1,0 +1,19 @@
+name: scenesynth
+channels:
+  - conda-forge
+  - pytorch
+  - defaults
+dependencies:
+  - numpy
+  - matplotlib
+  - pytorch
+  - torchvision 
+  - tqdm
+  - pillow
+  - wandb
+  - ete3
+  - pyyaml
+  - pygraphviz
+  - networkx
+  - pip:
+    - open3d

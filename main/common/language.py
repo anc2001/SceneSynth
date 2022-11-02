@@ -8,32 +8,30 @@ from main.common.tree_viz import visualize_program
 from main.config import \
     direction_types_map, constraint_types_map
 
-
-
 import numpy as np
 
 def verify_program(tokens, query_idx):
     structure = np.array(tokens['structure'])
     constraints = tokens['constraints']
     if np.sum(structure == 'c') != len(constraints):
-        return False
+        error_statement = "Num of constraints predicted and needed not the same!"
+        error_statement += f"Structure: {structure} \n"
+        error_statement += f"Constrains: {constraints} \n"
+        return False, error_statement
     for constraint in constraints:
         type = constraint[0]
         if not query_idx == constraint[1]:
-            print("Query index is invalid")
-            print(constraint)
-            return False
+            error_statement = f"Query index is invalid: {constraint}"
+            return False, error_statement
         if query_idx == constraint[2]:
-            print("Reference index is invalid")
-            print(constraint)
-            return False
+            error_statement = f"Reference index is invalid: {constraint}"
+            return False, error_statement
         orientation_flag = type == constraint_types_map['align']
         orientation_flag |= type == constraint_types_map['face']
         direction_pad_flag = constraint[3] == direction_types_map['<pad>']
         if orientation_flag != direction_pad_flag:
-            print("Type and directions don't match")
-            print(constraint)
-            return False
+            error_statement = f"Type and directions don't match: {constraint}"
+            return False, error_statement
     
     def verify_tree(sequence):
         if not len(sequence):
@@ -48,9 +46,11 @@ def verify_program(tokens, query_idx):
             return np.array([]), False
     
     remaining_tokens, valid = verify_tree(structure)
+    error_statement = "Program is valid"
     if len(remaining_tokens):
-        print("Too many tokens predicted")
-    return not (len(remaining_tokens) or not valid)
+        error_statement = f"Too many tokens predicted {structure}"
+    validity = not (len(remaining_tokens) or not valid)
+    return validity, error_statement
 
 class Node():
     """

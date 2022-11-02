@@ -5,6 +5,7 @@ from main.network.utils import PositionalEncoding, generate_square_subsequent_ma
 
 import torch
 import torch.nn as nn
+import numpy as np
 
 class ConstraintDecoderModel(nn.Module):
     def __init__(self, d_model : int, nhead : int, num_layers : int, max_num_constraints : int):
@@ -228,9 +229,14 @@ class ConstraintDecoderModel(nn.Module):
             head = decoded_outputs[-1]
             if relative_index == 0: # predict type 
                 logits = self.type_head(head)
-                predicted_token = torch.argmax(logits, dim = 1)
+                if guarantee_program:
+                    predicted_token = torch.argmax(logits[:, :4], dim = 1)
+                else:
+                    predicted_token = torch.argmax(logits, dim = 1)
+                
                 c_e_to_add = self.type_embedding(predicted_token)
                 predicted_token = predicted_token.item()
+                
             elif relative_index == 1:
                 predicted_token = len(src_e) - 1
                 c_e_to_add = src_e[predicted_token]

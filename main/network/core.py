@@ -290,7 +290,10 @@ class ModelCore(nn.Module):
         gt = constraints_flattened[:, 3]
         total_direction_correct = torch.sum((pred == gt) * directions_mask).item()
 
-        direction_accuracy = total_direction_correct / total_direction_tokens
+        if total_direction_tokens:
+            direction_accuracy = total_direction_correct / total_direction_tokens
+        else:
+            direction_accuracy = 1.0
 
         # print(f"directions_pred: {pred}")
         # print(f"directions_gt: {gt}")

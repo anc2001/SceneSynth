@@ -15,40 +15,40 @@ import numpy as np
 import os
 import wandb
 from argparse import ArgumentParser
+import matplotlib.pyplot as plt
 
-def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, with_wandb = False):
+def get_network_feedback(model, dataset, base_tag, device, num_examples = 5, with_wandb = False):
     print("Getting network feedback")
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
     program_dataset = dataset.dataset
 
-    columns = ["guarantee_required", "previous_structure", "previous_constraints"]
+    columns = ["type", "feedback"]
     data = []
 
     tags = [base_tag + f"/example_{i}" for i in range(num_examples)]
-    for tag, idx in zip(tags, indices[:num_examples]):
+    for tag, idx in tqdm(zip(tags, indices[:num_examples])):
         (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
         data_entry = []
         inferred_tokens = infer_program(model, scene, query_object, device)
-        # Is program valid 
-        if verify_program(inferred_tokens, len(scene.objects)):
-            print(inferred_tokens['structure'])
-            print(inferred_tokens['constraints'])
-            data_entry.append("no")
-            data_entry.append("")
-            data_entry.append("")
+
+        validity, feedback = verify_program(inferred_tokens, len(scene.objects))
+        if validity:
+            data_entry.append("inferred, no help")
+            data_entry.append(feedback)
         else: 
-            data_entry.append("yes")
-            data_entry.append(str(inferred_tokens['structure']))
-            data_entry.append(str(inferred_tokens['constraints']))
+            data_entry.append("inferred, help required")
+            data_entry.append(feedback)
 
             inferred_tokens = infer_program(model,
                 scene, query_object, device, 
                 guarantee_program=True
             )
+        data.append(data_entry)
         
+        validity, feedback = verify_program(inferred_tokens, len(scene.objects))
         # sanity check 
-        if not verify_program(inferred_tokens, len(scene.objects)):
+        if not validity:
             print("Inferred program with guarantee is not correct, You wrote something wrong!")
         
         program = ProgramTree()
@@ -58,8 +58,8 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wi
 
         if with_wandb:
             wandb.log({tag + "_inferred": fig})
-        else:
-            pass
+            
+        plt.close(fig)
 
         program = ProgramTree()
         program.from_tokens(ground_truth_program_tokens)
@@ -68,31 +68,28 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, wi
     
         if with_wandb:
             wandb.log({tag + "_ground_truth": fig})
-        else:
-            pass
+        plt.close(fig)
     
     if with_wandb:
         table = wandb.Table(data=data, columns=columns)
-        wandb.log({base_tag : table})
+        wandb.log({base_tag + "/table" : table})
 
 def infer_program(model, scene, query_object, device, guarantee_program=False):
-    model.eval()
-    with torch.no_grad():
-        scene_vector = np.expand_dims(
-            vectorize_scene(scene, query_object),
-            axis = 1
-        )
-        scene_vector = torch.tensor(scene_vector).to(device)
-        structure, constraints = model.infer(
-            scene_vector, device, 
-            guarantee_program = guarantee_program
-        )
-        tokens = {
-            'structure' : structure,
-            'constraints' : constraints
-        }
+    scene_vector = np.expand_dims(
+        vectorize_scene(scene, query_object),
+        axis = 1
+    )
+    scene_vector = torch.tensor(scene_vector).to(device)
+    structure, constraints = model.infer(
+        scene_vector, device, 
+        guarantee_program = guarantee_program
+    )
+    tokens = {
+        'structure' : structure,
+        'constraints' : constraints
+    }
 
-        return tokens
+    return tokens
 
 def iterate_through_data(model, dataloader, device, type, with_wandb = False, optimizer=None):
     total_log = {
@@ -104,8 +101,7 @@ def iterate_through_data(model, dataloader, device, type, with_wandb = False, op
             "direction_accuracy" : []
         }
     
-    # for vals in tqdm(dataloader):
-    for vals in dataloader:
+    for vals in tqdm(dataloader):
         # Extract vals from dataloader 
         (
             src, src_padding_mask, 
@@ -319,5 +315,5 @@ def overfit_to_one(args):
 
 if __name__ == '__main__':
     args = parseArguments()
-    # main(args)
-    overfit_to_one(args)
+    main(args)
+    # overfit_to_one(args)

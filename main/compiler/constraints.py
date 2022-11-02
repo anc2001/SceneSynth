@@ -76,8 +76,8 @@ def align(query_object, reference_object, scene):
 
 def face(query_object, reference_object, scene):
     # Does not matter what the semantic fronts of the reference object are 
-    if not query_object.front_facing:
-        raise_exception("front_facing")
+    # if not query_object.front_facing:
+    #     raise_exception("front_facing")
         
     mask = np.zeros((num_angles, grid_size, grid_size))
     query_front = list(query_object.semantic_fronts)[0]
