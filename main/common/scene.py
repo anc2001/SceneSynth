@@ -137,7 +137,7 @@ class Scene():
                 
         return object_list
     
-    def convert_to_image(self, empty=False):
+    def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
         """
         Prints the orthographic view 
         """
@@ -152,6 +152,8 @@ class Scene():
         if not empty:
             for object in self.objects:
                 object.write_to_image(self, image)
+            if with_query_object:
+                query_object.write_to_image(self, image)
         
         image = np.rot90(image, axes=(0,1))
         return image

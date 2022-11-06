@@ -9,18 +9,18 @@ from main.config import \
     constraint_types_map, \
     grid_size
 
-def draw_graph(graph, label_dict, object_dict, figsize=(15, 15)):
+def draw_graph(graph, label_dict, reference_dict, figsize=(15, 15)):
     # same layout using matplotlib with no labels
     fig = plt.figure(figsize = figsize)
     pos = graphviz_layout(graph, prog='dot')
     pos = {node: (x, y) for node, (x,y) in pos.items()}
 
-    num_objs = len(object_dict)
+    num_cols = len(reference_dict)
 
     num_rows = 8
-    ax_tree = plt.subplot2grid((num_rows, num_objs), (1,0), fig = fig, rowspan=num_rows-1, colspan=num_objs)
-    for i, (name, image) in enumerate(object_dict.items()):
-        ax = plt.subplot2grid((num_rows, num_objs), (0, i), fig = fig, rowspan=1, colspan=1, title=name)
+    ax_tree = plt.subplot2grid((num_rows, num_cols), (1,0), fig = fig, rowspan=num_rows-1, colspan=num_cols)
+    for i, (name, image) in enumerate(reference_dict.items()):
+        ax = plt.subplot2grid((num_rows, num_cols), (0, i), fig = fig, rowspan=1, colspan=1, title=name)
         ax.imshow(image)
         ax.axis('off')
 
@@ -109,23 +109,26 @@ def visualize_program(program_tree, scene, query_object):
             label = graph.nodes[x]['constraint']
         label_dict[id] = label
 
+    # Top bar of relevant images 
+    reference_dict = dict()
+    ground_truth = scene.convert_to_image(query_object=query_object, with_query_object=True)
+    reference_dict["ground truth scene"] = ground_truth
+
     wall_image = scene.convert_to_image(empty=True)
-    object_dict = {
-        "object_0 - wall" : wall_image
-    }
+    reference_dict["object_0 - wall"] = wall_image
 
     for i, object in enumerate(scene.objects[1:]):
         image = np.ones((grid_size, grid_size, 3))
         object.write_to_image(scene, image, normalize= True)
         image = np.rot90(image)
-        object_dict[f"object_{i+1} - {object_types[object.id]}"] = image
+        reference_dict[f"object_{i+1} - {object_types[object.id]}"] = image
 
     image = np.ones((grid_size, grid_size, 3))
     query_object.write_to_image(scene, image, normalize= True)
     image = np.rot90(image)
-    object_dict[f"object_{len(scene.objects)} - {object_types[query_object.id]}"] = image
+    reference_dict[f"object_{len(scene.objects)} - {object_types[query_object.id]}"] = image
     
-    fig = draw_graph(graph, label_dict, object_dict, figsize=(18, 20))
+    fig = draw_graph(graph, label_dict, reference_dict, figsize=(15, 17))
 
     return fig
 
