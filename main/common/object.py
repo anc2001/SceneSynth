@@ -197,10 +197,10 @@ class Furniture(SceneObject):
                 min_distance_tuple = query_line_seg.distance(reference_line_seg)
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
-                    score = reference_line_seg.calculate_sub_area(self.bbox.vertices)
+                    score = reference_line_seg.calculate_sub_area(query.bbox.vertices)
                     sides = [side]
                 elif min_distance_tuple[0] == min_distance:
-                    new_score = reference_line_seg.calculate_sub_area(self.bbox.vertices)
+                    new_score = reference_line_seg.calculate_sub_area(query.bbox.vertices)
                     if new_score > score:
                         score = new_score
                         sides = [side]
