@@ -20,58 +20,55 @@ def generate_most_restrictive_program(room, query_object):
     for reference_object_idx, reference_object in enumerate(room.objects):
         subprogram = ProgramTree()
 
-        if reference_object.id == 0:
-            # wall
-            distance, sides, accumulator = query_object.distance(reference_object, return_all = True)
-            distance_binned = np.digitize(distance, distance_bins)
-            other_possibilities = np.digitize(accumulator[:, 0], distance_bins)
-            other_possibilities = accumulator[other_possibilities == distance_binned]
-            for item in other_possibilities:
-                sides.add(item[1])
-            sides = sides.intersection(query_semantic_fronts)
-        else:
-            distance, sides = query_object.distance(reference_object)
-            distance_binned = np.digitize(distance, distance_bins)
-
-        # Add possible locations 
-        for side in sides:
-            if distance_binned == 2 and reference_object.holds_humans: 
-                # Close enough to be reachable, but not close enough to be attached
-                constraint = [
-                    constraint_types_map['reachable_by_arm'],
-                    query_object_idx,
-                    reference_object_idx,
-                    side
-                ]
-                other_tree = ProgramTree()
-                other_tree.from_constraint(constraint)
-                subprogram.combine('or', other_tree)
-            elif distance_binned == 1: # close enough to be attached 
-                constraint = [
-                    constraint_types_map['attach'],
-                    query_object_idx,
-                    reference_object_idx,
-                    side
-                ]
-                other_tree = ProgramTree()
-                other_tree.from_constraint(constraint)
-                subprogram.combine('or', other_tree)
+        distance, sides = reference_object.distance(query_object)
+        distance_binned = np.digitize(distance, distance_bins)
         
+        for side in sides:
+            # Add possible locations 
+            if distance_binned == 2 and reference_object.holds_humans:
+                # Close enough to be reachable, but not close enough to be attached
+                constraint_type = constraint_types_map['reachable_by_arm']
+                constraint = [
+                    constraint_type,
+                    query_object_idx,
+                    reference_object_idx,
+                    side
+                ]
+                other_tree = ProgramTree()
+                other_tree.from_constraint(constraint)
+                subprogram.combine('or', other_tree)
+            elif distance_binned == 1:
+                # Close enough to be attached 
+                constraint_type = constraint_types_map['attach']
+                constraint = [
+                    constraint_type,
+                    query_object_idx,
+                    reference_object_idx,
+                    side
+                ]
+                other_tree = ProgramTree()
+                other_tree.from_constraint(constraint)
+                subprogram.combine('or', other_tree)
+
         object_semantic_fronts = reference_object.world_semantic_fronts()
         overlap = query_semantic_fronts.intersection(object_semantic_fronts)
         if len(overlap) and len(subprogram): 
             # Algin, object points in the same direction 
             if not reference_object.id == 0:
-                constraint = [
-                    constraint_types_map['align'],
-                    query_object_idx,
-                    reference_object_idx,
-                    direction_types_map['<pad>']
-                ]
-                
-                other_tree = ProgramTree()
-                other_tree.from_constraint(constraint)
-                subprogram.combine('and', other_tree)
+                direction = direction_types_map['<pad>']
+            else:
+                direction = list(query_semantic_fronts)[0]
+
+            constraint = [
+                constraint_types_map['align'],
+                query_object_idx,
+                reference_object_idx,
+                direction
+            ]
+            
+            other_tree = ProgramTree()
+            other_tree.from_constraint(constraint)
+            subprogram.combine('and', other_tree)
         else: # face, not possible for query object to both face and be aligned with object 
             if query_object.front_facing:
                 front_facing_direction = list(query_semantic_fronts)[0]

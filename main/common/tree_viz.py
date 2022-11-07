@@ -68,11 +68,9 @@ def visualize_program(program_tree, scene, query_object):
             label = [
                 constraint_types[constraint[0]],
                 f"object_{constraint[1]}",
-                f"object_{constraint[2]}"
+                f"object_{constraint[2]}",
+                direction_types[constraint[3]]
             ]
-
-            if label[0] == 'attach' or label[0] == 'reachable_by_arm':
-                label.append(direction_types[constraint[3]])
             
             label = "\n".join(label)
             graph.add_node(

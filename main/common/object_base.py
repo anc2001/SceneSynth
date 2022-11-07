@@ -122,7 +122,7 @@ class LineSeg():
     def normal_to_point(self, point : np.ndarray):
         """
         Returns the perpindicular normal from the linseg that points towards point 
-        c 
+        c (point)
         |
         |   <- return this guy
         a ----- b
@@ -196,3 +196,46 @@ class LineSeg():
         distances = sorted(distances, key = lambda x : x[0])
         
         return distances[0]
+    
+    # def linearly_classify_points(self, points):
+    #     """
+    #     Treats lineseg as a linear classifier
+    #     returns accumulated score of given points from classification
+    #     """
+    #     total_score = 0
+    #     mid_point = self.calculate_centroid()
+    #     for point in points:
+    #         # check if point is within bounds
+
+    #         ab = self.p1 - self.p2
+    #         ab_mag = np.linalg.norm(ab)
+    #         ca = point - self.p1
+    #         projection = (np.dot(ca, ab) / (ab_mag ** 2)) * ab
+    #         normal = ca - projection
+    #         distance = np.linalg.norm(normal)
+    #         multiplier = 1 if np.dot(self.normal, point - mid_point) > 0 else -1
+    #         total_score += distance * multiplier
+    #     return total_score
+    
+    def calculate_sub_area(self, points):
+        """
+        0 -- 1
+        |    |
+        2 -- 3
+        """
+        axis = 2 if self.p1[0] == self.p2[0] else 0
+        min_bound = min(self.p1[axis], self.p2[axis])
+        max_bound = max(self.p1[axis], self.p2[axis])
+        
+        sub_quad = np.array(points)
+        for point in sub_quad:
+            point[axis] = np.clip(point[axis], min_bound, max_bound)
+        
+        score = max(
+            (sub_quad[0] - sub_quad[1])[axis],
+            (sub_quad[0] - sub_quad[2])[axis]
+        )
+
+        return score
+        
+        

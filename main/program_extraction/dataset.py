@@ -41,9 +41,7 @@ def collate_fn(samples):
         structure_max_length = max(len(program_tokens['structure']), structure_max_length)
         constraints_max_length = max(len(program_tokens['constraints']), constraints_max_length)
     
-    
     structure_max_length += 2
-
     object_representation_length = 7
     constraint_representation_length = 4
 

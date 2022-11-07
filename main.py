@@ -33,6 +33,7 @@ def program_execution(index):
     
     scene_list = get_scene_list()
     scene = scene_list[index]
+
     scene_image = scene.convert_to_image()
     img.imsave(os.path.join(room_folder, "scene.png"), scene_image)
     for i, (subscene, query_object) in enumerate(tqdm(scene.permute())):
@@ -42,6 +43,17 @@ def program_execution(index):
         program.evaluate(subscene, query_object)
         fig = program.print_program(subscene, query_object)
         fig.savefig(os.path.join(room_folder, f"{i}.png"))
+        plt.close(fig)
+
+    # i = 6
+    # subscene, query_object = scene.permute()[i]
+    # program = generate_most_restrictive_program(subscene, query_object)
+    # if verify_program_validity(program, subscene, query_object):
+    #     print(f"verified: {i}")
+    # program.evaluate(subscene, query_object)
+    # fig = program.print_program(subscene, query_object)
+    # fig.savefig(os.path.join(room_folder, f"{i}.png"))
+    # plt.close(fig)
 
 def main(args):
     if args.mode == 'program_extraction':

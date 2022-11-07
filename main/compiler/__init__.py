@@ -26,7 +26,7 @@ def solve_constraint(constraint, scene, query_object):
             attach=False
         )
     elif constraint_types[constraint_type] == 'align':
-        return align(query_object, reference_object, scene)
+        return align(query_object, reference_object, constraint[3])
     elif constraint_types[constraint_type] == 'face':
         return face(query_object, reference_object, scene)
 

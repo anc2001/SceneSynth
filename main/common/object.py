@@ -181,7 +181,7 @@ class Furniture(SceneObject):
             triangle = self.bbox.vertices[face]
             utils.write_triangle_to_mask(triangle, scene, mask)
 
-    def distance(self, reference : SceneObject, return_all=False):
+    def distance(self, query : SceneObject):
         """
         Calculates the minimum distance between the this and the given object 
         Distance value of 0 means that the two objects intersect or overlap 
@@ -189,28 +189,25 @@ class Furniture(SceneObject):
         returns distance, direction
         """        
         min_distance = np.finfo(np.float64).max
-        sides = set()
-        accumulator = []
-        for object_line_seg in self.line_segs:
-            for side, reference_line_seg in enumerate(reference.line_segs):
-                if reference.id == 0:
-                    side = utils.vector_angle_index(
-                        np.array([1,0,0]), 
-                        reference_line_seg.normal
-                    )
-                min_distance_tuple = object_line_seg.distance(reference_line_seg)
-                accumulator.append([min_distance_tuple[0], side])
+        sides = []
+        score = None
+        is_inside = query.point_inside(self.center) or self.point_inside(query.center)
+        for query_line_seg in query.line_segs:
+            for side, reference_line_seg in enumerate(self.line_segs):
+                min_distance_tuple = query_line_seg.distance(reference_line_seg)
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
-                    sides = set()
-                    sides.add(side)
-                elif min_distance == min_distance_tuple[0]:
-                    sides.add(side)   
-        
-        if return_all:
-            return min_distance, sides, np.array(accumulator)
-        else:
-            return min_distance, sides
+                    score = reference_line_seg.calculate_sub_area(self.bbox.vertices)
+                    sides = [side]
+                elif min_distance_tuple[0] == min_distance:
+                    new_score = reference_line_seg.calculate_sub_area(self.bbox.vertices)
+                    if new_score > score:
+                        score = new_score
+                        sides = [side]
+                    if is_inside:
+                        sides.append(side)
+
+        return min_distance, sides
 
     def world_semantic_fronts(self):
         """
@@ -311,6 +308,22 @@ class Wall(SceneObject):
 
     def write_to_mask(self, scene, mask):
         pass
+    
+    def distance(self, query):
+        min_distance = np.finfo(np.float64).max
+        sides = []
+        for query_line_seg in query.line_segs:
+            for side, reference_line_seg in enumerate(self.line_segs):
+                min_distance_tuple = query_line_seg.distance(reference_line_seg)
+                if min_distance_tuple[0] < min_distance:
+                    min_distance = min_distance_tuple[0]
+                    side = utils.vector_angle_index(
+                        np.array([1,0,0]), 
+                        reference_line_seg.normal
+                    )
+                    sides = [side]
+        
+        return min_distance, sides
     
     def world_semantic_fronts(self):
         """

@@ -176,8 +176,9 @@ class ProgramTree():
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D mask that can be used for evaluation 
         mask_3d = self.root.evaluate(scene, query_object)
-        ensure_placement_validity(mask_3d, scene, query_object)
-        self.mask = mask_3d
+        final_mask = np.array(mask_3d)
+        ensure_placement_validity(final_mask, scene, query_object)
+        self.mask = final_mask
 
         return self.mask
 

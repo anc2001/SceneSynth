@@ -1,6 +1,6 @@
 from main.config import grid_size, num_angles, \
     max_allowed_sideways_reach, max_attach_distance, \
-    direction_types
+    direction_types, direction_types_map
 from main.common.utils import write_triangle_to_mask, \
     normalize, raise_exception
 
@@ -19,13 +19,13 @@ def location_constraint(query_object, reference_object, direction, scene, attach
 
     side = reference_object.local_direction_to_world(direction)
     possible_orientations = []
-    if reference_object.id == 0:
-        possible_orientations = []
-        for query_semantic_front in query_object.semantic_fronts:
-            valid_orientation = (direction - query_semantic_front) % num_angles
-            possible_orientations.append(valid_orientation)
-    else:
-        possible_orientations = range(num_angles)
+    # if reference_object.id == 0:
+    #     possible_orientations = []
+    #     for query_semantic_front in query_object.semantic_fronts:
+    #         valid_orientation = (direction - query_semantic_front) % num_angles
+    #         possible_orientations.append(valid_orientation)
+    # else:
+    possible_orientations = range(num_angles)
 
     for possible_orientation in possible_orientations:
         line_segs = reference_object.line_segs_in_direction(side)
@@ -58,20 +58,21 @@ def location_constraint(query_object, reference_object, direction, scene, attach
                 )
     return mask
 
-def align(query_object, reference_object, scene):
+def align(query_object, reference_object, direction):
     mask = np.zeros((num_angles, grid_size, grid_size))
     reference_fronts = reference_object.world_semantic_fronts()
     query_fronts = query_object.semantic_fronts
-    
-    for world_direction in reference_fronts:
-        for direction in query_fronts:
-            valid_orientation = (world_direction - direction) % num_angles
-            mask[valid_orientation, :, :] = 1
+
+    if reference_object.id == 0 and not direction == direction_types_map['<pad>']:
+        for query_direction in query_fronts:
+            valid_orientation = (direction - query_direction) % num_angles
+            mask[valid_orientation, :, : ] = 1
+    else:
+        for world_direction in reference_fronts:
+            for query_direction in query_fronts:
+                valid_orientation = (world_direction - query_direction) % num_angles
+                mask[valid_orientation, :, :] = 1
         
-        # elif reference_object.front_facing:
-        #     for direction in query_fronts:
-        #         valid_orientation = (list(reference_fronts)[0] - direction) % num_angles
-        #         mask[valid_orientation, :, :] = 1
     return mask
 
 def face(query_object, reference_object, scene):
