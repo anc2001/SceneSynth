@@ -189,26 +189,38 @@ class Furniture(SceneObject):
         returns distance, direction
         """        
         min_distance = np.finfo(np.float64).max
-        sides = []
-        score = None
-        is_inside = query.point_inside(self.center) or self.point_inside(query.center)
         for query_line_seg in query.line_segs:
-            for side, reference_line_seg in enumerate(self.line_segs):
+            for reference_line_seg in self.line_segs:
                 min_distance_tuple = query_line_seg.distance(reference_line_seg)
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
-                    score = reference_line_seg.calculate_sub_area(query.bbox.vertices)
-                    sides = [side]
-                elif min_distance_tuple[0] == min_distance:
-                    new_score = reference_line_seg.calculate_sub_area(query.bbox.vertices)
-                    if new_score > score:
-                        score = new_score
-                        sides = [side]
-                    if is_inside:
-                        sides.append(side)
+        
+        score_max = 0
+        side_to_return = 0
+        spotlight_score_max = 0
+        for side, reference_line_seg in enumerate(self.line_segs):
+            normal = reference_line_seg.normal
+            v2 = utils.normalize(reference_line_seg.p1 - self.center)
+            angle = np.arccos(np.dot(reference_line_seg.normal, v2))
+            score = 0
+            spotlight_score = 0
+            for vertex in query.bbox.vertices:
+                vec = utils.normalize(vertex - self.center)
+                vec_angle = np.arccos(np.dot(vec, normal))
+                if np.dot(vec, normal) > 0:
+                    score += 1
+                if vec_angle <= angle:
+                    spotlight_score += 1
 
-        return min_distance, sides
-
+            if score > score_max:
+                score_max = score
+                spotlight_score_max = spotlight_score
+                side_to_return = side
+            elif score == score_max: # resolve ties with spotlight method 
+                if spotlight_score > spotlight_score_max:
+                    side_to_return = side
+        return min_distance, side_to_return
+    
     def world_semantic_fronts(self):
         """
         returns the semantic fronts of the object in world space
@@ -311,19 +323,18 @@ class Wall(SceneObject):
     
     def distance(self, query):
         min_distance = np.finfo(np.float64).max
-        sides = []
+        side_to_return = None
         for query_line_seg in query.line_segs:
-            for side, reference_line_seg in enumerate(self.line_segs):
+            for reference_line_seg in self.line_segs:
                 min_distance_tuple = query_line_seg.distance(reference_line_seg)
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
-                    side = utils.vector_angle_index(
+                    side_to_return = utils.vector_angle_index(
                         np.array([1,0,0]), 
                         reference_line_seg.normal
                     )
-                    sides = [side]
-        
-        return min_distance, sides
+                    
+        return min_distance, side_to_return
     
     def world_semantic_fronts(self):
         """

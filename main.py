@@ -45,7 +45,7 @@ def program_execution(index):
         fig.savefig(os.path.join(room_folder, f"{i}.png"))
         plt.close(fig)
 
-    # i = 6
+    # i = 9
     # subscene, query_object = scene.permute()[i]
     # program = generate_most_restrictive_program(subscene, query_object)
     # if verify_program_validity(program, subscene, query_object):

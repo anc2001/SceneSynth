@@ -20,35 +20,29 @@ def generate_most_restrictive_program(room, query_object):
     for reference_object_idx, reference_object in enumerate(room.objects):
         subprogram = ProgramTree()
 
-        distance, sides = reference_object.distance(query_object)
+        distance, side = reference_object.distance(query_object)
         distance_binned = np.digitize(distance, distance_bins)
         
-        for side in sides:
-            # Add possible locations 
-            if distance_binned == 2 and reference_object.holds_humans:
-                # Close enough to be reachable, but not close enough to be attached
-                constraint_type = constraint_types_map['reachable_by_arm']
-                constraint = [
-                    constraint_type,
-                    query_object_idx,
-                    reference_object_idx,
-                    side
-                ]
-                other_tree = ProgramTree()
-                other_tree.from_constraint(constraint)
-                subprogram.combine('or', other_tree)
-            elif distance_binned == 1:
-                # Close enough to be attached 
-                constraint_type = constraint_types_map['attach']
-                constraint = [
-                    constraint_type,
-                    query_object_idx,
-                    reference_object_idx,
-                    side
-                ]
-                other_tree = ProgramTree()
-                other_tree.from_constraint(constraint)
-                subprogram.combine('or', other_tree)
+        if distance_binned == 2 and reference_object.holds_humans:
+            # Close enough to be reachable, but not close enough to be attached
+            constraint_type = constraint_types_map['reachable_by_arm']
+            constraint = [
+                constraint_type,
+                query_object_idx,
+                reference_object_idx,
+                side
+            ]
+            subprogram.from_constraint(constraint)
+        elif distance_binned == 1:
+            # Close enough to be attached 
+            constraint_type = constraint_types_map['attach']
+            constraint = [
+                constraint_type,
+                query_object_idx,
+                reference_object_idx,
+                side
+            ]
+            subprogram.from_constraint(constraint)
 
         object_semantic_fronts = reference_object.world_semantic_fronts()
         overlap = query_semantic_fronts.intersection(object_semantic_fronts)

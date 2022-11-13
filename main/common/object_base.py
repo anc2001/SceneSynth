@@ -223,7 +223,8 @@ class LineSeg():
         |    |
         2 -- 3
         """
-        axis = 2 if self.p1[0] == self.p2[0] else 0
+        orientation = utils.vector_angle_index([1,0,0], self.normal)
+        axis = 0 if orientation % 2 else 2
         min_bound = min(self.p1[axis], self.p2[axis])
         max_bound = max(self.p1[axis], self.p2[axis])
         
@@ -232,9 +233,14 @@ class LineSeg():
             point[axis] = np.clip(point[axis], min_bound, max_bound)
         
         score = max(
-            (sub_quad[0] - sub_quad[1])[axis],
-            (sub_quad[0] - sub_quad[2])[axis]
+            abs((sub_quad[0] - sub_quad[1])[axis]),
+            abs((sub_quad[0] - sub_quad[2])[axis])
         )
+
+        # Do quad area 
+        length = np.linalg.norm(sub_quad[0] - sub_quad[1])
+        width = np.linalg.norm(sub_quad[0] - sub_quad[2])
+        area = length * width
 
         return score
         
