@@ -1,6 +1,7 @@
-from main.config import structure_vocab_map, constraint_types_map
-from main.program_extraction.data_processing import read_program_data
-from main.common.utils import vectorize_scene
+from main.config import \
+    structure_vocab_map, constraint_types_map, \
+    data_filepath
+from main.common.utils import vectorize_scene, read_data
 
 import torch
 from torch.utils.data import Dataset
@@ -8,11 +9,12 @@ from torch.utils.data import Dataset
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+import os
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def get_dataset():
-    data = read_program_data()
+    data = read_data(os.path.join(data_filepath, 'program_data.pkl'))
     dataset = ProgramDataset(data)
     return dataset
 

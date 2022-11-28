@@ -14,6 +14,7 @@ class BBox():
     """
     def __init__(self, size) -> None:
         self.extent = 2 * size
+        self.area = self.extent[0] * self.extent[2]
         max_bound = size
         min_bound = -size
         """
@@ -242,6 +243,6 @@ class LineSeg():
         width = np.linalg.norm(sub_quad[0] - sub_quad[2])
         area = length * width
 
-        return score
+        return score, area
         
         

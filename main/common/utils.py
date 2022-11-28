@@ -3,6 +3,16 @@ from main.config import grid_size, bin_width, num_angles
 import numpy as np
 from itertools import chain, combinations
 import os, shutil
+import pickle 
+
+def write_data(data, filepath):
+    with open(filepath, 'wb') as handle:
+        pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+def read_data(filepath):
+    with open(filepath, 'rb') as handle:
+        unserialized_data = pickle.load(handle)
+    return unserialized_data
 
 def vectorize_scene(scene, query_object):
     # Convert scene to object list and program to structures + constraints

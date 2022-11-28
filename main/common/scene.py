@@ -10,14 +10,20 @@ import pickle
 import os 
 from tqdm import tqdm
 
-def get_scene_list():
-    scene_list = np.array([])
-    with open(os.path.join(data_filepath, 'kai_parse.pkl'), 'rb') as f:
-        room_info_list = pickle.load(f)
-        for room_info in tqdm(room_info_list):
-            scene = Scene(room_info = room_info)
-            scene_list = np.append(scene_list, scene)
-    return scene_list
+def get_scene_list(pickle_name):
+    if pickle_name == 'kai_parse.pkl':
+        scene_list = np.array([])
+        with open(os.path.join(data_filepath, pickle_name), 'rb') as f:
+            room_info_list = pickle.load(f)
+            for room_info in tqdm(room_info_list):
+                scene = Scene(room_info = room_info)
+                scene_list = np.append(scene_list, scene)
+        return scene_list
+    elif pickle_name == 'adrian_parse.pkl':
+        filepath = os.path.join(data_filepath, pickle_name)
+        with open(filepath, 'rb') as handle:
+            unserialized_data = pickle.load(handle)
+        return unserialized_data
 
 class Scene():
     """
@@ -31,6 +37,7 @@ class Scene():
     """
     def __init__(self, room_info : dict = None) -> None:
         if room_info:
+            self.id = room_info['id']
             self.init_room_geometry(
                 room_info['floor_plan']['vertices'], 
                 room_info['floor_plan']['faces']
@@ -120,7 +127,7 @@ class Scene():
                 new_scene = empty_scene.copy()
                 new_scene.objects = np.append(new_scene.objects, objects_in_room)
                 scene_object_pairs.append((new_scene, query_object))
-        
+
         return scene_object_pairs
 
     def vectorize(self):

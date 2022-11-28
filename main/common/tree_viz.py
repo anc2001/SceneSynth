@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from networkx.drawing.nx_agraph import graphviz_layout
 import numpy as np
 
-from main.compiler import convert_mask_to_image
+from main.executor import convert_mask_to_image
 from main.config import \
     constraint_types, direction_types, object_types, \
     constraint_types_map, \

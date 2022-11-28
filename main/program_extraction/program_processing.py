@@ -17,13 +17,44 @@ def generate_most_restrictive_program(room, query_object):
     distance_bins = [0, max_attach_distance, max_allowed_sideways_reach]
     
     program = ProgramTree()
-    for reference_object_idx, reference_object in enumerate(room.objects):
+
+    # Special case wall 
+    reference_object_idx = 0
+    reference_object = room.objects[0]
+    sides = reference_object.infer_relation(query_object, distance_bins)
+    for side in sides:
+        constraint = [
+            constraint_types_map['attach'],
+            query_object_idx,
+            reference_object_idx,
+            side
+        ]
+        subprogram = ProgramTree()
+        subprogram.from_constraint(constraint)
+        program.combine('and', subprogram)
+    overlap = query_semantic_fronts.intersection(sides)
+    if len(overlap) and len(program):
+        direction = list(query_semantic_fronts)[0]
+        constraint = [
+            constraint_types_map['align'],
+            query_object_idx,
+            reference_object_idx,
+            direction
+        ]
+        subprogram = ProgramTree()
+        subprogram.from_constraint(constraint)
+        program.combine('and', subprogram)
+
+    for reference_object_idx, reference_object in enumerate(room.objects[1:]):
+        reference_object_idx += 1
         subprogram = ProgramTree()
 
-        distance, side = reference_object.distance(query_object)
+        distance = reference_object.distance(query_object)
         distance_binned = np.digitize(distance, distance_bins)
+        if distance_binned == 1 or distance_binned == 2:
+            side = reference_object.infer_relation(query_object)
         
-        if distance_binned == 2 and reference_object.holds_humans:
+        if distance_binned == 2 and reference_object.holds_humans and side >= 0:
             # Close enough to be reachable, but not close enough to be attached
             constraint_type = constraint_types_map['reachable_by_arm']
             constraint = [
@@ -33,7 +64,7 @@ def generate_most_restrictive_program(room, query_object):
                 side
             ]
             subprogram.from_constraint(constraint)
-        elif distance_binned == 1:
+        elif distance_binned == 1 and side >= 0:
             # Close enough to be attached 
             constraint_type = constraint_types_map['attach']
             constraint = [
@@ -47,7 +78,7 @@ def generate_most_restrictive_program(room, query_object):
         object_semantic_fronts = reference_object.world_semantic_fronts()
         overlap = query_semantic_fronts.intersection(object_semantic_fronts)
         if len(overlap) and len(subprogram): 
-            # Algin, object points in the same direction 
+            # Align, object points in the same direction 
             if not reference_object.id == 0:
                 direction = direction_types_map['<pad>']
             else:
@@ -126,19 +157,3 @@ def extract_programs(scene_list):
             xs.append((scene, query_object))
             ys.append(program_tokens)
     return xs, ys
-
-def write_program_data(xs, ys):
-    program_data = dict()
-    program_data['xs'] = xs
-    program_data['ys'] = ys
-
-    filepath = os.path.join(data_filepath, 'program_data.pkl')
-    with open(filepath, 'wb') as handle:
-        pickle.dump(program_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-def read_program_data():
-    filepath = os.path.join(data_filepath, 'program_data.pkl')
-    with open(filepath, 'rb') as handle:
-        unserialized_data = pickle.load(handle)
-    
-    return unserialized_data

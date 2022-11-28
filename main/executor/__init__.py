@@ -1,6 +1,6 @@
-from main.compiler.constraints import align, face, \
+from main.executor.constraints import align, face, \
     location_constraint
-from main.compiler.mask_operations import \
+from main.executor.mask_operations import \
     convert_mask_to_image, ensure_placement_validity
 from main.config import constraint_types
 

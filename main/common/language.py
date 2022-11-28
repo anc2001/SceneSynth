@@ -1,6 +1,6 @@
 from main.common.scene import Scene
 from main.common.object import Furniture
-from main.compiler import \
+from main.executor import \
     ensure_placement_validity, solve_constraint
 from main.common.utils import raise_exception
 from main.common.tree_viz import visualize_program

@@ -57,7 +57,7 @@ def get_object(*args, **kwargs):
             info['color'] = colors['desk']
             info['id'] = object_types_map['desk']
             info['holds_humans'] = False
-            info['semantic_fronts'] = {0, 1, 2, 3}
+            info['semantic_fronts'] = {1}
             valid = True
         
         if valid:
@@ -128,7 +128,10 @@ class Furniture(SceneObject):
         self.bbox.translate(amount)
         for line_seg in self.line_segs:
             line_seg.translate(amount) 
-    
+
+    def area(self):
+        return self.bbox.area
+
     def vectorize(self, wall_object):
         """
         (category, holds_humans, size, position, rotation) - size and position in 2D
@@ -194,32 +197,52 @@ class Furniture(SceneObject):
                 min_distance_tuple = query_line_seg.distance(reference_line_seg)
                 if min_distance_tuple[0] < min_distance:
                     min_distance = min_distance_tuple[0]
-        
-        score_max = 0
-        side_to_return = 0
-        spotlight_score_max = 0
+
+        return min_distance
+
+    def infer_side(self, query : SceneObject):
+        side_to_return = -1
+        percent_max = 0
         for side, reference_line_seg in enumerate(self.line_segs):
+            sub_length, area = reference_line_seg.calculate_sub_area(query.bbox.vertices)
+            percent = sub_length / reference_line_seg.length()
             normal = reference_line_seg.normal
-            v2 = utils.normalize(reference_line_seg.p1 - self.center)
-            angle = np.arccos(np.dot(reference_line_seg.normal, v2))
             score = 0
-            spotlight_score = 0
             for vertex in query.bbox.vertices:
                 vec = utils.normalize(vertex - self.center)
-                vec_angle = np.arccos(np.dot(vec, normal))
                 if np.dot(vec, normal) > 0:
                     score += 1
-                if vec_angle <= angle:
-                    spotlight_score += 1
-
-            if score > score_max:
-                score_max = score
-                spotlight_score_max = spotlight_score
+            if percent > 0.05 and percent > percent_max and score == 4:
                 side_to_return = side
-            elif score == score_max: # resolve ties with spotlight method 
-                if spotlight_score > spotlight_score_max:
-                    side_to_return = side
-        return min_distance, side_to_return
+                percent_max = percent
+        return side_to_return
+
+        # score_max = 0
+        # side_to_return = -1
+        # spotlight_score_max = 0
+        # for side, reference_line_seg in enumerate(self.line_segs):
+        #     normal = reference_line_seg.normal
+        #     v2 = utils.normalize(reference_line_seg.p1 - self.center)
+        #     angle = np.arccos(np.dot(reference_line_seg.normal, v2))
+        #     score = 0
+        #     spotlight_score = 0
+        #     for vertex in query.bbox.vertices:
+        #         vec = utils.normalize(vertex - self.center)
+        #         vec_angle = np.arccos(np.dot(vec, normal))
+        #         if np.dot(vec, normal) > 0:
+        #             score += 1
+        #         if vec_angle <= angle:
+        #             spotlight_score += 1
+
+        #     if score > score_max:
+        #         score_max = score
+        #         spotlight_score_max = spotlight_score
+        #         side_to_return = side
+        #     elif score == score_max and score_max: # resolve ties with spotlight method 
+        #         # if score == 4:
+        #         #     side_to_return = -1
+        #         if spotlight_score > spotlight_score_max:
+        #             side_to_return = side   
     
     def world_semantic_fronts(self):
         """
@@ -321,20 +344,24 @@ class Wall(SceneObject):
     def write_to_mask(self, scene, mask):
         pass
     
-    def distance(self, query):
-        min_distance = np.finfo(np.float64).max
-        side_to_return = None
+    # Want to know
+    # 1. All possible sides of the wall the object is attached to 
+    def infer_relation(self, query, bins):
+        sides = set()
         for query_line_seg in query.line_segs:
             for reference_line_seg in self.line_segs:
+                sub_length, area = reference_line_seg.calculate_sub_area(query.bbox.vertices)
+                percent = sub_length / reference_line_seg.length()
                 min_distance_tuple = query_line_seg.distance(reference_line_seg)
-                if min_distance_tuple[0] < min_distance:
-                    min_distance = min_distance_tuple[0]
-                    side_to_return = utils.vector_angle_index(
+                distance_binned = np.digitize(min_distance_tuple[0], bins)
+                if distance_binned == 1 and percent > 0.05:
+                    side = utils.vector_angle_index(
                         np.array([1,0,0]), 
                         reference_line_seg.normal
                     )
-                    
-        return min_distance, side_to_return
+                    sides.add(side)
+        
+        return sides
     
     def world_semantic_fronts(self):
         """

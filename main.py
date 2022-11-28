@@ -2,8 +2,7 @@ from main.common import get_scene_list
 from main.common.utils import clear_folder
 from main.config import image_filepath
 from main.program_extraction import generate_most_restrictive_program, \
-    execute_program_extraction, \
-    verify_program_validity
+    execute_program_extraction, verify_program_validity, filter_scenes
 
 import matplotlib.image as img
 import matplotlib.pyplot as plt
@@ -15,11 +14,28 @@ import numpy as np
 def parseArguments():
     parser = ArgumentParser()
     parser.add_argument('-m', '--mode', type=str, required=True, 
-        help="mode to run [program_extraction, program_execution]")
+        help="mode to run [program_extraction, program_execution, filter_scenes, print_rooms]")
     parser.add_argument('-i', '--index', type=int, default=0,
-        help="room index to run program_execution on")
+        help="program_execution: room index to run program_execution on")
+    parser.add_argument('-n', '--name', type=str, default="kai_parse.pkl",
+        help="filter_scenes and print_rooms: scenes file name")
     args = parser.parse_args()
     return args
+
+def print_rooms(pickle_name):
+    if not os.path.exists(image_filepath):
+        os.mkdir(image_filepath)
+    
+    room_folder = os.path.join(image_filepath, "room_images")
+    if os.path.exists(room_folder):
+        clear_folder(room_folder)
+    else:
+        os.mkdir(room_folder)
+
+    scene_list = get_scene_list(pickle_name)
+    for i, scene in enumerate(tqdm(scene_list)):
+        scene_image = scene.convert_to_image()
+        img.imsave(os.path.join(room_folder, f"{i}-{scene.id}.png"), scene_image)
 
 def program_execution(index):
     if not os.path.exists(image_filepath):
@@ -60,6 +76,10 @@ def main(args):
         execute_program_extraction()
     elif args.mode == 'program_execution':
         program_execution(args.index)
+    elif args.mode == 'filter_scenes':
+        filter_scenes(args.name)
+    elif args.mode == 'print_rooms':
+        print_rooms(args.name)
     else:
         print("Not a recognized mode!")
 
