@@ -1,13 +1,13 @@
 from main.network import ModelCore, \
     optimizer_factory, loss_factory, \
     save_model, load_model
-from main.program_extraction.dataset import \
+from main.data_processing.dataset import \
     get_dataset, get_dataloader
 
 from main.config import load_config, data_filepath
 from main.common.language import ProgramTree, verify_program
 from main.common.utils import vectorize_scene, clear_folder
-from main.program_extraction.dataset import get_dataloader
+from main.data_processing.dataset import get_dataloader
 
 import torch
 from tqdm import tqdm

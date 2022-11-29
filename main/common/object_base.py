@@ -198,25 +198,26 @@ class LineSeg():
         
         return distances[0]
     
-    # def linearly_classify_points(self, points):
-    #     """
-    #     Treats lineseg as a linear classifier
-    #     returns accumulated score of given points from classification
-    #     """
-    #     total_score = 0
-    #     mid_point = self.calculate_centroid()
-    #     for point in points:
-    #         # check if point is within bounds
+    def linearly_classify_points(self, points):
+        """
+        Treats lineseg as a linear classifier
+        returns accumulated score of given points from classification
+        """
+        scores = []
+        mid_point = self.calculate_centroid()
+        for point in points:
+            # check if point is within bounds
 
-    #         ab = self.p1 - self.p2
-    #         ab_mag = np.linalg.norm(ab)
-    #         ca = point - self.p1
-    #         projection = (np.dot(ca, ab) / (ab_mag ** 2)) * ab
-    #         normal = ca - projection
-    #         distance = np.linalg.norm(normal)
-    #         multiplier = 1 if np.dot(self.normal, point - mid_point) > 0 else -1
-    #         total_score += distance * multiplier
-    #     return total_score
+            ab = self.p1 - self.p2
+            ab_mag = np.linalg.norm(ab)
+            ca = point - self.p1
+            projection = (np.dot(ca, ab) / (ab_mag ** 2)) * ab
+            normal = ca - projection
+            distance = np.linalg.norm(normal)
+            multiplier = 1 if np.dot(self.normal, point - mid_point) > 0 else -1
+            scores.append(multiplier * distance)
+        
+        return scores
     
     def calculate_sub_area(self, points):
         """

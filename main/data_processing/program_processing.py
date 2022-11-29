@@ -11,8 +11,8 @@ from tqdm import tqdm
 import pickle
 import os
 
-def generate_most_restrictive_program(room, query_object):
-    query_object_idx = len(room.objects)
+def generate_most_restrictive_program(scene, query_object):
+    query_object_idx = len(scene.objects)
     query_semantic_fronts = query_object.world_semantic_fronts()
     distance_bins = [0, max_attach_distance, max_allowed_sideways_reach]
     
@@ -20,7 +20,7 @@ def generate_most_restrictive_program(room, query_object):
 
     # Special case wall 
     reference_object_idx = 0
-    reference_object = room.objects[0]
+    reference_object = scene.objects[0]
     sides = reference_object.infer_relation(query_object, distance_bins)
     for side in sides:
         constraint = [
@@ -45,7 +45,7 @@ def generate_most_restrictive_program(room, query_object):
         subprogram.from_constraint(constraint)
         program.combine('and', subprogram)
 
-    for reference_object_idx, reference_object in enumerate(room.objects[1:]):
+    for reference_object_idx, reference_object in enumerate(scene.objects[1:]):
         reference_object_idx += 1
         subprogram = ProgramTree()
 
@@ -145,15 +145,18 @@ def verify_program_validity(program, scene, query_object):
                 return True
     return False
         
-def extract_programs(scene_list):
+def extract_programs(scenes, query_objects):
     xs = [] # (scene, query_object) pairs
     ys = [] # programs 
-    for scene in tqdm(scene_list):
-        for scene, query_object in scene.permute():
-            program = generate_most_restrictive_program(scene, query_object)
-            program_tokens = program.to_tokens()
-            if not verify_program(program_tokens, len(scene.objects)):
-                print("Here!")
-            xs.append((scene, query_object))
-            ys.append(program_tokens)
-    return xs, ys
+    for scene, query_object in zip(scenes, query_objects):
+        program = generate_most_restrictive_program(scene, query_object)
+        program_tokens = program.to_tokens()
+        if not verify_program(program_tokens, len(scene.objects)):
+            print("Here!")
+        xs.append((scene, query_object))
+        ys.append(program_tokens)
+    program_data = {
+        "xs" : xs,
+        "ys" : ys
+    }
+    return program_data

@@ -1,29 +1,12 @@
 from main.common.utils import powerset,\
     write_triangle_to_image, \
-    write_triangle_to_mask
+    write_triangle_to_mask, \
+    read_data
 from main.common.object import Furniture, get_object
 from main.config import data_filepath, grid_size, colors
 
 import numpy as np
 import open3d as o3d
-import pickle
-import os 
-from tqdm import tqdm
-
-def get_scene_list(pickle_name):
-    if pickle_name == 'kai_parse.pkl':
-        scene_list = np.array([])
-        with open(os.path.join(data_filepath, pickle_name), 'rb') as f:
-            room_info_list = pickle.load(f)
-            for room_info in tqdm(room_info_list):
-                scene = Scene(room_info = room_info)
-                scene_list = np.append(scene_list, scene)
-        return scene_list
-    elif pickle_name == 'adrian_parse.pkl':
-        filepath = os.path.join(data_filepath, pickle_name)
-        with open(filepath, 'rb') as handle:
-            unserialized_data = pickle.load(handle)
-        return unserialized_data
 
 class Scene():
     """
@@ -83,6 +66,7 @@ class Scene():
 
     def copy(self, empty=False):
         new_scene = Scene()
+        new_scene.id = self.id
         new_scene.vertices = np.array(self.vertices)
         new_scene.faces = np.array(self.faces)
         new_scene.cell_size = self.cell_size

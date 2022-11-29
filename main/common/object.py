@@ -202,7 +202,7 @@ class Furniture(SceneObject):
 
     def infer_side(self, query : SceneObject):
         side_to_return = -1
-        percent_max = 0
+        max_coverage = 0
         for side, reference_line_seg in enumerate(self.line_segs):
             sub_length, area = reference_line_seg.calculate_sub_area(query.bbox.vertices)
             percent = sub_length / reference_line_seg.length()
@@ -212,9 +212,9 @@ class Furniture(SceneObject):
                 vec = utils.normalize(vertex - self.center)
                 if np.dot(vec, normal) > 0:
                     score += 1
-            if percent > 0.05 and percent > percent_max and score == 4:
+            if percent > 0.05 and sub_length > max_coverage and score == 4:
                 side_to_return = side
-                percent_max = percent
+                max_coverage = sub_length
         return side_to_return
 
         # score_max = 0
@@ -344,8 +344,7 @@ class Wall(SceneObject):
     def write_to_mask(self, scene, mask):
         pass
     
-    # Want to know
-    # 1. All possible sides of the wall the object is attached to 
+    # Want to know all possible sides of the wall the object is attached to 
     def infer_relation(self, query, bins):
         sides = set()
         for query_line_seg in query.line_segs:
