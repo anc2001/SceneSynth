@@ -22,10 +22,18 @@ def execute_scene_filtering(filename):
         scenes_and_query_objects = read_data(os.path.join(data_filepath, filename))
         scenes = scenes_and_query_objects['scenes']
         query_objects = scenes_and_query_objects['query_objects']
+
+        # scenes = np.array(scenes)[:500]
+        # query_objects = np.array(query_objects)[:500]
+
         for scene, query_object in zip(scenes, query_objects):
             scene.add_object(query_object)
+        
         accepted_index_list, rejected_index_list = filter_scenes(scenes)
 
+        for scene in scenes:
+            scene.objects = np.delete(scene.objects, len(scene.objects) - 1)
+        
         valid_scenes = np.array(scenes)[accepted_index_list]
         valid_objects = np.array(query_objects)[accepted_index_list]
         valid_pairs = {
@@ -47,32 +55,32 @@ def filter_scenes(scene_list):
     for index, scene in enumerate(tqdm(scene_list)):
         # Check if any of the objects fall outside of the room 
         valid = True
-        # for object in scene.objects[1:]:
-        #     for line_seg in scene.objects[0].line_segs:
-        #         scores = np.array(line_seg.linearly_classify_points(object.bbox.vertices))
-        #         if np.min(scores) < -scene.cell_size * 40:
-        #             valid = False
-        possible_pairs = list(combinations(range(len(scene.objects) - 1), 2))
-        for possible_pair in possible_pairs:
-            # Calculate the overlapping area between two objects 
-            object_1 = scene.objects[possible_pair[0] + 1]
-            object_2 = scene.objects[possible_pair[1] + 1]
-            distance = object_2.distance(object_1)
-            if not distance:
-                min_bound = np.amin(object_1.bbox.vertices, axis = 0)
-                max_bound = np.amax(object_1.bbox.vertices, axis = 0)
-                sub_quad = np.clip(object_2.bbox.vertices, min_bound, max_bound)
-                area = np.linalg.norm(np.cross(sub_quad[1] - sub_quad[0], sub_quad[2] - sub_quad[0]))
-                
-                threshold = 0.4
-                max_percent_overlap = max(area / object_1.area(), area / object_2.area())
-                # If percent overlap significant enough throw out room 
-                if max_percent_overlap > threshold or area > scene.cell_size * 8:
-                    valid = False
-                    rejected_index_list.append(index)
-                    break
+        if scene.check_if_objects_inside():
+            possible_pairs = list(combinations(range(len(scene.objects) - 1), 2))
+            for possible_pair in possible_pairs:
+                # Calculate the overlapping area between two objects 
+                object_1 = scene.objects[possible_pair[0] + 1]
+                object_2 = scene.objects[possible_pair[1] + 1]
+                distance = object_2.distance(object_1)
+                if not distance:
+                    min_bound = np.amin(object_1.bbox.vertices, axis = 0)
+                    max_bound = np.amax(object_1.bbox.vertices, axis = 0)
+                    sub_quad = np.clip(object_2.bbox.vertices, min_bound, max_bound)
+                    area = np.linalg.norm(np.cross(sub_quad[1] - sub_quad[0], sub_quad[2] - sub_quad[0]))
+                    
+                    threshold = 0.4
+                    max_percent_overlap = max(area / object_1.area(), area / object_2.area())
+                    # If percent overlap significant enough throw out room 
+                    if max_percent_overlap > threshold or area > scene.cell_size * 8:
+                        valid = False
+                        break
+        else:
+            valid = False
+        
         if valid:
-            accepted_index_list.append(index)          
+            accepted_index_list.append(index)
+        else:
+            rejected_index_list.append(index)          
     
     return accepted_index_list, rejected_index_list
 
@@ -118,7 +126,7 @@ def get_scene_query_list(pickle_name):
     filepath = os.path.join(data_filepath, pickle_name)
     scenes_and_queries = read_data(filepath)
     scenes = scenes_and_queries['scenes']
-    query_objects = scenes_and_queries['objects']
+    query_objects = scenes_and_queries['query_objects']
     return scenes, query_objects
 
 # Scene similarity metric to get possible candidate scenes for program combination 

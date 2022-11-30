@@ -8,8 +8,6 @@ from main.common.language import verify_program
 
 import numpy as np
 from tqdm import tqdm
-import pickle
-import os
 
 def generate_most_restrictive_program(scene, query_object):
     query_object_idx = len(scene.objects)
@@ -80,7 +78,7 @@ def generate_most_restrictive_program(scene, query_object):
         if len(overlap) and len(subprogram): 
             # Align, object points in the same direction 
             if not reference_object.id == 0:
-                direction = direction_types_map['<pad>']
+                direction = direction_types_map['null']
             else:
                 direction = list(query_semantic_fronts)[0]
 
@@ -109,7 +107,7 @@ def generate_most_restrictive_program(scene, query_object):
                                 constraint_types_map['face'],
                                 query_object_idx,
                                 reference_object_idx,
-                                direction_types_map['<pad>']      
+                                direction_types_map['null']      
                             ]
                             other_tree = ProgramTree()
                             other_tree.from_constraint(constraint)
@@ -122,7 +120,7 @@ def generate_most_restrictive_program(scene, query_object):
             constraint_types_map['align'],
             query_object_idx,
             0,
-            direction_types_map['<pad>']
+            direction_types_map['null']
         ]
         program.from_constraint(constraint)
     return program
@@ -148,7 +146,7 @@ def verify_program_validity(program, scene, query_object):
 def extract_programs(scenes, query_objects):
     xs = [] # (scene, query_object) pairs
     ys = [] # programs 
-    for scene, query_object in zip(scenes, query_objects):
+    for scene, query_object in tqdm(zip(scenes, query_objects), total=len(scenes)):
         program = generate_most_restrictive_program(scene, query_object)
         program_tokens = program.to_tokens()
         if not verify_program(program_tokens, len(scene.objects)):

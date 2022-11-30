@@ -37,7 +37,7 @@ structure_vocab = np.array(['c', 'or', 'and', '<sos>', '<eos>', '<pad>'])
 structure_vocab_map = generate_idx_map(structure_vocab)
 constraint_types = np.array(['attach', 'reachable_by_arm', 'align', 'face', '<sos>', '<eos>'])
 constraint_types_map = generate_idx_map(constraint_types)
-direction_types = np.array(['right', 'up', 'left', 'down', '<pad>'])
+direction_types = np.array(['right', 'up', 'left', 'down', 'null'])
 direction_types_map = generate_idx_map(direction_types)
 
 object_types = np.array(['wall', 'bed', 'wardrobe', 'nightstand', 'desk', 'chair'])

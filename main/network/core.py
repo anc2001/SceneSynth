@@ -194,14 +194,7 @@ class ModelCore(nn.Module):
         types_loss = self.loss_fnc(type_selections[~tgt_c_padding_mask_types], tgt_c[~tgt_c_padding_mask_types][:, 0].long())
         objects_loss = self.loss_fnc(object_selections[~tgt_c_padding_mask], constraints_flattened[:, 2].long())
         directions_loss  = self.loss_fnc(direction_selections[~tgt_c_padding_mask], constraints_flattened[:, 3].long())
-        # mask orientation constraints from directions loss 
-        directions_mask = torch.logical_or(
-            constraints_flattened[:, 0] == constraint_types_map['attach'],
-            constraints_flattened[:, 0] == constraint_types_map['reachable_by_arm']
-        )
-        directions_loss *= directions_mask
 
-        # loss = 
         loss = torch.mean(structure_loss) + torch.mean(types_loss) + torch.mean(objects_loss + directions_loss)
         return loss
 
@@ -238,11 +231,6 @@ class ModelCore(nn.Module):
         constraints_flattened_types = tgt_c[~tgt_c_padding_mask_types]
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
 
-        directions_mask = torch.logical_or(
-            constraints_flattened[:, 0] == constraint_types_map['attach'],
-            constraints_flattened[:, 0] == constraint_types_map['reachable_by_arm']
-        )
-
         # Constraint type accuracy 
         total_type_tokens = n_c_types
         pred = torch.argmax(type_selections, dim = 1)
@@ -274,10 +262,10 @@ class ModelCore(nn.Module):
         total_correct_tokens += total_object_correct 
 
         # Direction selection accuracy 
-        total_direction_tokens = torch.sum(directions_mask).item()
+        total_direction_tokens = n_c
         pred = torch.argmax(direction_selections, dim = 1)
         gt = constraints_flattened[:, 3]
-        total_direction_correct = torch.sum((pred == gt) * directions_mask).item()
+        total_direction_correct = torch.sum((pred == gt)).item()
 
         if total_direction_tokens:
             direction_accuracy = total_direction_correct / total_direction_tokens

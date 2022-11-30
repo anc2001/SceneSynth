@@ -14,11 +14,7 @@ class ConstraintDecoderModel(nn.Module):
         self.d_model = d_model
         self.nhead = nhead
         self.type_embedding = nn.Embedding(len(constraint_types), self.d_model)
-        self.direction_embedding = nn.Embedding(
-            len(direction_types), 
-            self.d_model, 
-            padding_idx=direction_types_map['<pad>']
-        )
+        self.direction_embedding = nn.Embedding(len(direction_types), self.d_model)
         self.objects_or_tree = nn.Embedding(2, self.d_model) # Differentiate sequence from being from objects vs being from tree
         self.relative_position_embedding = nn.Embedding(4, self.d_model)
         self.constraint_index_embedding = nn.Embedding(max_num_constraints, self.d_model)
@@ -254,11 +250,8 @@ class ConstraintDecoderModel(nn.Module):
                 predicted_token = predicted_token.item()
                 c_e_to_add = src_e[predicted_token]
             elif relative_index == 3: # predict direction (if applicable)
-                if current_constraint[0] == constraint_types_map['attach'] or current_constraint[0] == constraint_types_map['reachable_by_arm']:
-                    logits = self.direction_head(head)
-                    predicted_token = torch.argmax(logits, dim = 1)
-                else:
-                    predicted_token = torch.Tensor([direction_types_map['<pad>']]).int()
+                logits = self.direction_head(head)
+                predicted_token = torch.argmax(logits, dim = 1)
                 c_e_to_add = self.direction_embedding(predicted_token)
                 predicted_token = predicted_token.item()
             

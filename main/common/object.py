@@ -200,7 +200,7 @@ class Furniture(SceneObject):
 
         return min_distance
 
-    def infer_side(self, query : SceneObject):
+    def infer_relation(self, query : SceneObject):
         side_to_return = -1
         max_coverage = 0
         for side, reference_line_seg in enumerate(self.line_segs):
@@ -397,7 +397,7 @@ class Wall(SceneObject):
 
         returns local index of corresponding side 
         """
-        return direction_types_map['<pad>']
+        return direction_types_map['null']
     
     def local_direction_to_world(self, angle):
         return angle

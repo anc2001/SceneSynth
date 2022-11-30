@@ -148,6 +148,35 @@ class Scene():
         
         image = np.rot90(image, axes=(0,1))
         return image
+
+    def check_if_objects_inside(self, analytic=True):
+        if analytic:
+            min = np.amin(self.vertices, axis = 0)
+            max = np.amax(self.vertices, axis = 0)
+            for object in self.objects[1:]:
+                sub_quad = np.clip(object.bbox.vertices, min, max)
+                extent = np.amax(sub_quad, axis = 0) - np.amin(sub_quad, axis = 0)
+                area = extent[0] * extent[2]
+                area_outside = object.area() - area
+                if area_outside > pow(self.cell_size, 2) * 500:
+                    return False
+            return True
+        else:
+            room_mask = np.zeros((grid_size, grid_size))
+            for face in self.faces:
+                triangle = self.vertices[face]
+                write_triangle_to_mask(triangle, self, room_mask)
+            
+            for object in self.objects[1:]:
+                object_mask = np.array(room_mask)
+                for face in object.bbox.faces:
+                    triangle = object.bbox.vertices[face]
+                    write_triangle_to_mask(triangle, self, object_mask)
+                # Ideally this mask is empty -> all points in the object are inside
+                disagreement = np.logical_xor(room_mask, object_mask)
+                if np.sum(disagreement) > 500:
+                    return False
+            return True
     
     def convert_to_mask(self):
         # 1 invalid space

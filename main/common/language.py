@@ -28,7 +28,7 @@ def verify_program(tokens, query_idx):
             return False, error_statement
         orientation_flag = type == constraint_types_map['align']
         orientation_flag |= type == constraint_types_map['face']
-        direction_pad_flag = constraint[3] == direction_types_map['<pad>']
+        direction_pad_flag = constraint[3] == direction_types_map['null']
         if orientation_flag != direction_pad_flag:
             error_statement = f"Type and directions don't match: {constraint}"
             return False, error_statement
