@@ -4,9 +4,11 @@ from main.common.utils import powerset,\
     read_data
 from main.common.object import Furniture, get_object
 from main.config import data_filepath, grid_size, colors
+from main.common.mesh_to_mask import render_mesh
 
 import numpy as np
 import open3d as o3d
+from numba import jit
 
 class Scene():
     """
@@ -76,25 +78,6 @@ class Scene():
         else:
             new_scene.objects = np.array(self.objects)
         return new_scene
-    
-    def add_object(self, obj : Furniture, inplace=True):
-        # Maintain canonical ordering
-        if inplace:
-            self.objects = np.append(self.objects, obj)
-        else:
-            new_scene = self.copy()
-            new_scene.add_object(obj, inplace=True)
-            return new_scene
-
-    def remove_object(self, index : int, inplace=True):
-        if inplace:
-            new_object_list = self.objects[:index] + self.objects[index+1:]
-            if self.grid_active:
-                pass
-        else:
-            new_scene = self.copy()
-            new_scene.remove_object(index, inplace=True)
-            return new_scene
 
     def permute(self):
         # Given the current objects, return a list of (scene, object) tuples
@@ -178,17 +161,25 @@ class Scene():
                     return False
             return True
     
-    def convert_to_mask(self):
-        # 1 invalid space
-        # 0 empty (valid) space
-        mask = np.zeros((grid_size, grid_size))
-        for face in self.faces:
-            triangle = self.vertices[face]
-            write_triangle_to_mask(triangle, self, mask)
+    # def convert_to_mask(self):
+    #     # 1 invalid space
+    #     # 0 empty (valid) space
+    #     mask = np.zeros((grid_size, grid_size))
+    #     for face in self.faces:
+    #         triangle = self.vertices[face]
+    #         write_triangle_to_mask(triangle, self, mask)
         
-        mask = (~mask.astype(bool)).astype(int)
+    #     mask = (~mask.astype(bool)).astype(int)
 
-        for object in self.objects:
-            object.write_to_mask(self, mask)
+    #     for object in self.objects:
+    #         object.write_to_mask(self, mask)
         
+    #     return mask
+    
+    def convert_to_mask(self):
+        mask = render_mesh(self.vertices, self.faces)
+        mask = (~mask.astype(bool)).astype(int)
+        for object in self.objects[1:]:
+            object_mask = render_mesh(object.bbox.vertices, object.bbox.faces)
+            mask + object_mask
         return mask

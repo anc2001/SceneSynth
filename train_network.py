@@ -327,5 +327,5 @@ def overfit_to_one(args):
 
 if __name__ == '__main__':
     args = parseArguments()
-    main(args)
-    # overfit_to_one(args)
+    # main(args)
+    overfit_to_one(args)

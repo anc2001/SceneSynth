@@ -215,34 +215,7 @@ class Furniture(SceneObject):
             if percent > 0.05 and sub_length > max_coverage and score == 4:
                 side_to_return = side
                 max_coverage = sub_length
-        return side_to_return
-
-        # score_max = 0
-        # side_to_return = -1
-        # spotlight_score_max = 0
-        # for side, reference_line_seg in enumerate(self.line_segs):
-        #     normal = reference_line_seg.normal
-        #     v2 = utils.normalize(reference_line_seg.p1 - self.center)
-        #     angle = np.arccos(np.dot(reference_line_seg.normal, v2))
-        #     score = 0
-        #     spotlight_score = 0
-        #     for vertex in query.bbox.vertices:
-        #         vec = utils.normalize(vertex - self.center)
-        #         vec_angle = np.arccos(np.dot(vec, normal))
-        #         if np.dot(vec, normal) > 0:
-        #             score += 1
-        #         if vec_angle <= angle:
-        #             spotlight_score += 1
-
-        #     if score > score_max:
-        #         score_max = score
-        #         spotlight_score_max = spotlight_score
-        #         side_to_return = side
-        #     elif score == score_max and score_max: # resolve ties with spotlight method 
-        #         # if score == 4:
-        #         #     side_to_return = -1
-        #         if spotlight_score > spotlight_score_max:
-        #             side_to_return = side   
+        return side_to_return  
     
     def world_semantic_fronts(self):
         """
@@ -337,12 +310,6 @@ class Wall(SceneObject):
         (category, holds_humans, size, position, rotation) - size and position in 2D
         """
         return np.array([[self.id, False, self.extent[0], self.extent[2], 0, 0, 0]])
-
-    def write_to_image(self, scene, image):
-        pass
-
-    def write_to_mask(self, scene, mask):
-        pass
     
     # Want to know all possible sides of the wall the object is attached to 
     def infer_relation(self, query, bins):

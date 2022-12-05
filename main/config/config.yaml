@@ -1,5 +1,5 @@
-project: bedroom_test
-name: five_objects
+project: overfit_to_one
+name: test
 
 architecture:
   d_model: 128

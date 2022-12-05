@@ -4,6 +4,7 @@ import numpy as np
 from itertools import chain, combinations
 import os, shutil
 import pickle 
+from numba import jit
 
 def write_data(data, filepath):
     with open(filepath, 'wb') as handle:
@@ -95,6 +96,7 @@ def get_grid_bounds(min_bound, max_bound, scene):
 
     return grid_min_bound, grid_max_bound
 
+@jit(nopython=True)
 def write_triangle_to_image(triangle, scene, image, color):
     min_bound = np.amin(triangle, axis = 0)
     max_bound = np.amax(triangle, axis = 0)
@@ -105,6 +107,7 @@ def write_triangle_to_image(triangle, scene, image, color):
             if point_triangle_test(cell_center, triangle):
                 image[i, j, :] = color
 
+@jit(nopython=True)
 def write_triangle_to_mask(triangle, scene, mask):
     min_bound = np.amin(triangle, axis = 0)
     max_bound = np.amax(triangle, axis = 0)
