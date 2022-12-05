@@ -121,13 +121,13 @@ class Scene():
         # Mask all points inside 
         for face in self.faces:
             triangle = self.vertices[face]
-            write_triangle_to_image(triangle, self, image, colors['inside'])
+            write_triangle_to_image(triangle, self.corner_pos, self.cell_size, image, colors['inside'])
         
         if not empty:
             for object in self.objects:
-                object.write_to_image(self, image)
+                object.write_to_image(self.corner_pos, self.cell_size, image)
             if with_query_object:
-                query_object.write_to_image(self, image)
+                query_object.write_to_image(self.corner_pos, self.cell_size, image)
         
         image = np.rot90(image, axes=(0,1))
         return image
@@ -148,13 +148,13 @@ class Scene():
             room_mask = np.zeros((grid_size, grid_size))
             for face in self.faces:
                 triangle = self.vertices[face]
-                write_triangle_to_mask(triangle, self, room_mask)
+                write_triangle_to_mask(triangle, self.corner_pos, self.cell_size, room_mask)
             
             for object in self.objects[1:]:
                 object_mask = np.array(room_mask)
                 for face in object.bbox.faces:
                     triangle = object.bbox.vertices[face]
-                    write_triangle_to_mask(triangle, self, object_mask)
+                    write_triangle_to_mask(triangle, self.corner_pos, self.cell_size, object_mask)
                 # Ideally this mask is empty -> all points in the object are inside
                 disagreement = np.logical_xor(room_mask, object_mask)
                 if np.sum(disagreement) > 500:

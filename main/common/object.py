@@ -147,7 +147,7 @@ class Furniture(SceneObject):
             self.bbox.rot
         ]])
 
-    def write_to_image(self, scene, image, normalize = False):
+    def write_to_image(self, scene_corner_pos, scene_cell_size, image, normalize = False):
         current_bbox = self.bbox
         temp_bbox = BBox(self.bbox.extent / 2)
         current_line_segs = self.line_segs
@@ -158,10 +158,10 @@ class Furniture(SceneObject):
         # Write bounding box to image 
         for face in self.bbox.faces:
             triangle = self.bbox.vertices[face]
-            utils.write_triangle_to_image(triangle, scene, image, self.color)
+            utils.write_triangle_to_image(triangle, scene_corner_pos, scene_cell_size, image, self.color)
 
         # Write triangle directions to image 
-        base_length = scene.cell_size * 8
+        base_length = scene_cell_size * 8
         height = (np.sqrt(3) * base_length) / 2 # Equilateral triangle 
         for direction, segment in enumerate(self.line_segs):
             triangle_color = colors['directions'][direction]
@@ -173,7 +173,7 @@ class Furniture(SceneObject):
             b = segment_centroid - (segment_vector * base_length / 2)
             c = segment_centroid + segment_normal * height
             triangle = [a, b, c]
-            utils.write_triangle_to_image(triangle, scene, image, triangle_color)
+            utils.write_triangle_to_image(triangle, scene_corner_pos, scene_cell_size, image, triangle_color)
         
         if normalize:
             self.bbox = current_bbox
@@ -182,7 +182,7 @@ class Furniture(SceneObject):
     def write_to_mask(self, scene, mask):
         for face in self.bbox.faces:
             triangle = self.bbox.vertices[face]
-            utils.write_triangle_to_mask(triangle, scene, mask)
+            utils.write_triangle_to_mask(triangle, scene.corner_pos, scene.cell_size, mask)
 
     def distance(self, query : SceneObject):
         """
@@ -311,6 +311,9 @@ class Wall(SceneObject):
         """
         return np.array([[self.id, False, self.extent[0], self.extent[2], 0, 0, 0]])
     
+    def write_to_image(self, scene_corner_pos, scene_cell_size, image, normalize = False):
+        pass
+
     # Want to know all possible sides of the wall the object is attached to 
     def infer_relation(self, query, bins):
         sides = set()

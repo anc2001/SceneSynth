@@ -282,7 +282,7 @@ def overfit_to_one(args):
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
-    index = 467
+    index = 300
     
     (scene, query_object), program_tokens = dataset[index]
     print(program_tokens['structure'])
@@ -307,7 +307,7 @@ def overfit_to_one(args):
         config['training']['lr']
     )
 
-    for _ in range(1000):
+    for _ in range(500):
         model.train()
         log = iterate_through_data(
             model, single_point_dataloader, device, "train", 

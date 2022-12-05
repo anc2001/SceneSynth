@@ -117,12 +117,12 @@ def visualize_program(program_tree, scene, query_object):
 
     for i, object in enumerate(scene.objects[1:]):
         image = np.ones((grid_size, grid_size, 3))
-        object.write_to_image(scene, image, normalize= True)
+        object.write_to_image(scene.corner_pos, scene.cell_size, image, normalize= True)
         image = np.rot90(image)
         reference_dict[f"object_{i+1} - {object_types[object.id]}"] = image
 
     image = np.ones((grid_size, grid_size, 3))
-    query_object.write_to_image(scene, image, normalize= True)
+    query_object.write_to_image(scene.corner_pos, scene.cell_size, image, normalize= True)
     image = np.rot90(image)
     reference_dict[f"object_{len(scene.objects)} - {object_types[query_object.id]}"] = image
     

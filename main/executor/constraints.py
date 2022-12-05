@@ -50,7 +50,8 @@ def location_constraint(query_object, reference_object, direction, scene, attach
             for triangle in triangles:
                 write_triangle_to_mask(
                     triangle, 
-                    scene, 
+                    scene.corner_pos, 
+                    scene.cell_size, 
                     mask[possible_orientation]
                 )
     return mask
@@ -95,7 +96,8 @@ def face(query_object, reference_object, scene):
             for triangle in triangles:
                 write_triangle_to_mask(
                     triangle, 
-                    scene, 
+                    scene.corner_pos, 
+                    scene.cell_size, 
                     mask[valid_orientation]
                 )
                 
