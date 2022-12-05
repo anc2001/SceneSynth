@@ -282,7 +282,7 @@ def overfit_to_one(args):
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
-    index = 300
+    index = 6920
     
     (scene, query_object), program_tokens = dataset[index]
     print(program_tokens['structure'])

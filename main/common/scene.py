@@ -8,7 +8,6 @@ from main.common.mesh_to_mask import render_mesh
 
 import numpy as np
 import open3d as o3d
-from numba import jit
 
 class Scene():
     """
@@ -131,7 +130,12 @@ class Scene():
         
         image = np.rot90(image, axes=(0,1))
         return image
-
+    
+    # Use Kai's code to write a more optimized version
+    def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
+        room_img = render_mesh(self.vertices, self.faces)
+        
+    
     def check_if_objects_inside(self, analytic=True):
         if analytic:
             min = np.amin(self.vertices, axis = 0)
