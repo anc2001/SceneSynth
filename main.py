@@ -6,6 +6,8 @@ from main.data_processing import generate_most_restrictive_program, \
     get_scene_list, get_scene_query_list
 from main.common.language import ProgramTree
 
+from main.common.mesh_to_mask import temp
+
 import matplotlib.image as img
 import matplotlib.pyplot as plt
 import os
@@ -108,6 +110,7 @@ def main(args):
     elif args.mode == 'filter_scenes':
         execute_scene_filtering(args.name)
     elif args.mode == 'print_scenes':
+        # temp()
         print_rooms(args.name)
     elif args.mode == 'visualize_programs':
         visualize_programs(args.name)

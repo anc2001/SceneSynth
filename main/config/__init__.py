@@ -11,8 +11,8 @@ def load_config(filepath):
         config = yaml.load(f, Loader=Loader)
     return config
 
-data_filepath = "/home/achang57/SceneSynth/data"
-# data_filepath = "/Users/adrianchang/CS/research/SceneSynth/data"
+# data_filepath = "/home/achang57/SceneSynth/data"
+data_filepath = "/Users/adrianchang/CS/research/SceneSynth/data"
 image_filepath = os.path.join(data_filepath, "images")
 colors = {
         'outside' : np.array([222, 222, 222]) / 256,

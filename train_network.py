@@ -27,7 +27,7 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 5, wit
     data = []
 
     tags = [base_tag + f"/example_{i}" for i in range(num_examples)]
-    for tag, idx in tqdm(zip(tags, indices[:num_examples])):
+    for tag, idx in tqdm(zip(tags, indices[:num_examples]), total=len(tags)):
         (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
         data_entry = []
         inferred_tokens = infer_program(model, scene, query_object, device)
@@ -133,13 +133,7 @@ def iterate_through_data(model, dataloader, device, type, with_wandb = False, op
             # Update
             optimizer.step()
 
-        (
-            structure_accuracy,
-            type_accuracy,
-            object_accuracy,
-            direction_accuracy,
-            total_accuracy
-        ) = model.accuracy_fnc(
+        statistics = model.accuracy_fnc(
             structure_preds, 
             constraint_preds,
             tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
@@ -147,11 +141,8 @@ def iterate_through_data(model, dataloader, device, type, with_wandb = False, op
 
         log = {
             "loss" : loss.item(),
-            "accuracy" : total_accuracy,
-            "structure_accuracy" : structure_accuracy,
-            "type_accuracy" : type_accuracy,
-            "object_accuracy" : object_accuracy,
-            "direction_accuracy" : direction_accuracy
+            "accuracy" : statistics["accuracy"],
+            "f1_score" : statistics["f1_score"]
         }
 
         if with_wandb and type == "train":

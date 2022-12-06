@@ -4,10 +4,12 @@ from main.network.utils import PositionalEncoding, generate_square_subsequent_ma
 from main.config import \
     object_types, \
     structure_vocab, structure_vocab_map, \
-    constraint_types_map
+    constraint_types, \
+    direction_types
 
 import torch
 from torch import nn
+from torchmetrics.functional.classification import multiclass_f1_score
 
 # Full implementation of the model end to end 
 class ModelCore(nn.Module):
@@ -215,12 +217,17 @@ class ModelCore(nn.Module):
 
         total_structure_tokens = torch.sum(padding_mask).item()
         total_structure_correct = torch.sum((pred == gt) * padding_mask).item()
+        structure_f1_score = multiclass_f1_score(
+            pred, gt, len(structure_vocab), ignore_index=structure_vocab_map['<pad>']
+        )
 
         structure_accuracy = total_structure_correct / total_structure_tokens
         total_tokens += total_structure_tokens
         total_correct_tokens += total_structure_correct 
 
-        # Constraint attribute accuracy 
+        # Constraint attribute accuracies 
+
+        # Initialize relevant tensors 
         type_selections, object_selections, direction_selections = constraint_preds
         type_selections = type_selections[~tgt_c_padding_mask_types]
         object_selections = object_selections[~tgt_c_padding_mask]
@@ -237,11 +244,10 @@ class ModelCore(nn.Module):
         gt = constraints_flattened_types[:, 0]
         total_type_correct = torch.sum(pred == gt).item()
 
+        constraint_type_f1_score = multiclass_f1_score(
+            pred, gt, len(constraint_types)
+        )
         type_accuracy = total_type_correct / total_type_tokens
-        
-        # print(f"types_pred: {pred}")
-        # print(f"types_gt: {gt}")
-        # print(f"accuracy: {type_accuracy}")
 
         total_tokens += total_type_tokens
         total_correct_tokens += total_type_correct 
@@ -252,11 +258,10 @@ class ModelCore(nn.Module):
         gt = constraints_flattened[:, 2]
         total_object_correct = torch.sum(pred == gt).item()
 
+        object_selection_f1_score = multiclass_f1_score(
+            pred, gt, 
+        )
         object_accuracy = total_object_correct / total_object_tokens
-        
-        # print(f"objects_pred: {pred}")
-        # print(f"objects_gt: {gt}")
-        # print(f"accuracy: {object_accuracy}")
 
         total_tokens += total_object_tokens
         total_correct_tokens += total_object_correct 
@@ -272,18 +277,27 @@ class ModelCore(nn.Module):
         else:
             direction_accuracy = 1.0
 
-        # print(f"directions_pred: {pred}")
-        # print(f"directions_gt: {gt}")
-        # print(f"accuracy: {direction_accuracy}")
-
         total_tokens += total_direction_tokens
         total_correct_tokens += total_direction_correct 
 
-        total_accuracy = total_correct_tokens / total_tokens 
-        return (
-            structure_accuracy,
-            type_accuracy,
-            object_accuracy,
-            direction_accuracy,
-            total_accuracy
+        direction_f1_score = multiclass_f1_score(
+            pred, gt, 
         )
+        total_accuracy = total_correct_tokens / total_tokens 
+        
+        statistics = {
+            "accuracy": {
+                "structure" : structure_accuracy,
+                "type" : type_accuracy,
+                "object" : object_accuracy,
+                "direction" : direction_accuracy,
+                "total" : total_accuracy                
+            },
+            "f1_score": {
+                "structure" : structure_f1_score,
+                "type" : constraint_type_f1_score,
+                "object" : object_selection_f1_score,
+                "direction" : direction_f1_score
+            }
+        }
+        return statistics
