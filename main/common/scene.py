@@ -110,34 +110,34 @@ class Scene():
                 
         return object_list
     
-    # def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
-    #     """
-    #     Prints the orthographic view 
-    #     """
-    #     image = np.zeros((grid_size, grid_size, 3))
-    #     image[:, :, :] = colors['outside']
+    def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
+        """
+        Prints the orthographic view 
+        """
+        image = np.zeros((grid_size, grid_size, 3))
+        image[:, :, :] = colors['outside']
 
-    #     # Mask all points inside 
-    #     for face in self.faces:
-    #         triangle = self.vertices[face]
-    #         write_triangle_to_image(triangle, self.corner_pos, self.cell_size, image, colors['inside'])
+        # Mask all points inside 
+        for face in self.faces:
+            triangle = self.vertices[face]
+            write_triangle_to_image(triangle, self.corner_pos, self.cell_size, image, colors['inside'])
         
-    #     if not empty:
-    #         for object in self.objects:
-    #             object.write_to_image(self.corner_pos, self.cell_size, image)
-    #         if with_query_object:
-    #             query_object.write_to_image(self.corner_pos, self.cell_size, image)
+        if not empty:
+            for object in self.objects:
+                object.write_to_image(self.corner_pos, self.cell_size, image)
+            if with_query_object:
+                query_object.write_to_image(self.corner_pos, self.cell_size, image)
         
-    #     image = np.rot90(image, axes=(0,1))
-    #     return image
+        image = np.rot90(image, axes=(0,1))
+        return image
     
     # Use Kai's code to write a more optimized version
-    def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
-        room_img = render_mesh(self.vertices, self.faces)
-        room_img[room_img == 0] = colors['outside']
+    # def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
+    #     room_img = render_mesh(self.vertices, self.faces)
+    #     room_img[room_img == 0] = colors['outside']
 
-        image = np.rot90(room_img, axes=(0,1))
-        return image
+    #     image = np.rot90(room_img, axes=(0,1))
+    #     return image
     
     def check_if_objects_inside(self, analytic=True):
         if analytic:

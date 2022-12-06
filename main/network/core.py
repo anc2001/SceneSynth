@@ -9,7 +9,8 @@ from main.config import \
 
 import torch
 from torch import nn
-from torchmetrics.functional.classification import multiclass_f1_score
+from torchmetrics.functional.classification import \
+    multiclass_f1_score, binary_f1_score
 
 # Full implementation of the model end to end 
 class ModelCore(nn.Module):
@@ -204,7 +205,8 @@ class ModelCore(nn.Module):
         self, 
         structure_preds, 
         constraint_preds,
-        tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
+        tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+        objects_max_length
     ):
         total_tokens = 0
         total_correct_tokens = 0
@@ -257,9 +259,9 @@ class ModelCore(nn.Module):
         pred = torch.argmax(object_selections, dim = 1)
         gt = constraints_flattened[:, 2]
         total_object_correct = torch.sum(pred == gt).item()
-
+        
         object_selection_f1_score = multiclass_f1_score(
-            pred, gt, 
+            pred, gt, objects_max_length
         )
         object_accuracy = total_object_correct / total_object_tokens
 
@@ -281,7 +283,7 @@ class ModelCore(nn.Module):
         total_correct_tokens += total_direction_correct 
 
         direction_f1_score = multiclass_f1_score(
-            pred, gt, 
+            pred, gt, len(direction_types)
         )
         total_accuracy = total_correct_tokens / total_tokens 
         

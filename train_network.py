@@ -3,155 +3,16 @@ from main.network import ModelCore, \
     save_model, load_model
 from main.data_processing.dataset import \
     get_dataset, get_dataloader
+from main.network.usage import iterate_through_data, \
+    get_network_feedback
 
 from main.config import load_config, data_filepath
-from main.common.language import ProgramTree, verify_program
-from main.common.utils import vectorize_scene, clear_folder
 from main.data_processing.dataset import get_dataloader
 
 import torch
-from tqdm import tqdm
-import numpy as np
 import os
 import wandb
 from argparse import ArgumentParser
-import matplotlib.pyplot as plt
-
-def get_network_feedback(model, dataset, base_tag, device, num_examples = 5, with_wandb = False):
-    print("Getting network feedback")
-    indices = np.array(dataset.indices)
-    np.random.shuffle(indices)
-    program_dataset = dataset.dataset
-
-    columns = ["type", "feedback"]
-    data = []
-
-    tags = [base_tag + f"/example_{i}" for i in range(num_examples)]
-    for tag, idx in tqdm(zip(tags, indices[:num_examples]), total=len(tags)):
-        (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
-        data_entry = []
-        inferred_tokens = infer_program(model, scene, query_object, device)
-
-        validity, feedback = verify_program(inferred_tokens, len(scene.objects))
-        if validity:
-            data_entry.append("inferred, no help")
-            data_entry.append(feedback)
-        else: 
-            data_entry.append("inferred, help required")
-            data_entry.append(feedback)
-
-            inferred_tokens = infer_program(model,
-                scene, query_object, device, 
-                guarantee_program=True
-            )
-        data.append(data_entry)
-        
-        validity, feedback = verify_program(inferred_tokens, len(scene.objects))
-        # sanity check 
-        if not validity:
-            print("Inferred program with guarantee is not correct, You wrote something wrong!")
-        
-        program = ProgramTree()
-        program.from_tokens(inferred_tokens)
-        program.evaluate(scene, query_object)
-        fig = program.print_program(scene, query_object)
-
-        if with_wandb:
-            wandb.log({tag + "_inferred": fig})
-            
-        plt.close(fig)
-
-        program = ProgramTree()
-        program.from_tokens(ground_truth_program_tokens)
-        program.evaluate(scene, query_object)
-        fig = program.print_program(scene, query_object)  
-    
-        if with_wandb:
-            wandb.log({tag + "_ground_truth": fig})
-        plt.close(fig)
-    
-    if with_wandb:
-        table = wandb.Table(data=data, columns=columns)
-        wandb.log({base_tag + "/table" : table})
-
-def infer_program(model, scene, query_object, device, guarantee_program=False):
-    scene_vector = np.expand_dims(
-        vectorize_scene(scene, query_object),
-        axis = 1
-    )
-    scene_vector = torch.tensor(scene_vector).to(device)
-    structure, constraints = model.infer(
-        scene_vector, device, 
-        guarantee_program = guarantee_program
-    )
-    tokens = {
-        'structure' : structure,
-        'constraints' : constraints
-    }
-
-    return tokens
-
-def iterate_through_data(model, dataloader, device, type, with_wandb = False, optimizer=None):
-    total_log = {
-            "loss" : [],
-            "accuracy" : [],
-            "structure_accuracy" : [],
-            "type_accuracy" : [],
-            "object_accuracy" : [],
-            "direction_accuracy" : []
-        }
-    
-    for vals in tqdm(dataloader):
-        # Extract vals from dataloader 
-        (
-            src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
-        ) = vals
-
-        if type == "train":
-            optimizer.zero_grad()
-
-        structure_preds, constraint_preds = model(
-            src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter,
-            tgt_c, tgt_c_padding_mask, 
-            device
-        )
-
-        # Compute Loss
-        loss = model.loss(  
-            structure_preds,          
-            constraint_preds,
-            tgt, tgt_padding_mask, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
-        )
-        
-        if type == "train":
-            # Backpropagation 
-            loss.backward()
-            # Update
-            optimizer.step()
-
-        statistics = model.accuracy_fnc(
-            structure_preds, 
-            constraint_preds,
-            tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
-        )
-
-        log = {
-            "loss" : loss.item(),
-            "accuracy" : statistics["accuracy"],
-            "f1_score" : statistics["f1_score"]
-        }
-
-        if with_wandb and type == "train":
-            wandb.log({"train" : log})
-        
-        for key in log.keys():
-            total_log[key].append(log[key])
-    
-    return {key : np.mean(value) for (key, value) in total_log.items()}
 
 def parseArguments():
     parser = ArgumentParser()
@@ -173,6 +34,9 @@ def main(args):
             config = config
         )
     
+    # wandb.define_metric("batch")
+    # wandb.define_metric("epoch")
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     dataset = get_dataset()
@@ -214,13 +78,10 @@ def main(args):
     for epoch in range(epochs):
         
         model.train()
-        log = iterate_through_data(
+        iterate_through_data(
             model, train_dataloader, device, "train", 
             optimizer = optimizer, with_wandb = args.with_wandb
         )
-
-        if not args.with_wandb:
-            print(log)
         
         get_network_feedback(
             model, train_dataset, 
@@ -231,14 +92,10 @@ def main(args):
 
         model.eval()
         with torch.inference_mode():
-            log = iterate_through_data(
+            iterate_through_data(
                 model, val_dataloader, device, "val", 
                 with_wandb = args.with_wandb
             )
-            if args.with_wandb:
-                wandb.log({"val" : log})
-            else:
-                print(log)
 
             get_network_feedback(
                 model, val_dataset,
@@ -247,20 +104,13 @@ def main(args):
                 with_wandb = args.with_wandb
             )
     
-    log = iterate_through_data(model, test_dataloader, device, "test", with_wandb = args.with_wandb)
-    if args.with_wandb:
-        cols = []
-        data = []
-        for key, value  in log.items():
-            cols.append(key)
-            data.append(value)
-        table = wandb.Table(data=data, columns=cols)
-        wandb.log({"test_summary" : table})
-    else:
-        print(log)
+    iterate_through_data(
+        model, test_dataloader, device, "test", 
+        with_wandb = args.with_wandb
+    )
     
-    model_save = os.path.join(data_filepath, "model.pt")
-    save_model(model, model_save)
+    # model_save = os.path.join(data_filepath, "model.pt")
+    # save_model(model, model_save)
 
 def overfit_to_one(args):
     config = load_config(args.config)
@@ -273,11 +123,11 @@ def overfit_to_one(args):
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
-    index = 6920
+    index = 1690
     
-    (scene, query_object), program_tokens = dataset[index]
-    print(program_tokens['structure'])
-    print(program_tokens['constraints'])
+    # (scene, query_object), program_tokens = dataset[index]
+    # print(program_tokens['structure'])
+    # print(program_tokens['constraints'])
     
     single_point_dataset = torch.utils.data.Subset(dataset, [index])
     single_point_dataloader = get_dataloader(single_point_dataset, config['training']['batch_size'])
