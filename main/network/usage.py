@@ -81,7 +81,9 @@ def infer_program(model, scene, query_object, device, guarantee_program=False):
 
     return tokens
 
-def iterate_through_data(model, dataloader, device, type, with_wandb = False, optimizer=None): 
+def iterate_through_data(
+    model, dataloader, device, type, logger,
+    optimizer=None, with_wandb = False): 
     for vals in tqdm(dataloader):
         # Extract vals from dataloader 
         (
@@ -140,4 +142,4 @@ def iterate_through_data(model, dataloader, device, type, with_wandb = False, op
                 table = wandb.Table(data=data, columns=cols)
                 wandb.log({"test_set_summary" : table})
             else:
-                wandb.log({type : log})
+                logger.log(log)

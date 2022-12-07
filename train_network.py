@@ -5,6 +5,7 @@ from main.data_processing.dataset import \
     get_dataset, get_dataloader
 from main.network.usage import iterate_through_data, \
     get_network_feedback
+from main.network.stat_logger import StatLogger
 
 from main.config import load_config, data_filepath
 from main.data_processing.dataset import get_dataloader
@@ -123,7 +124,7 @@ def overfit_to_one(args):
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
-    index = 1690
+    index = 0
     
     # (scene, query_object), program_tokens = dataset[index]
     # print(program_tokens['structure'])
@@ -148,16 +149,15 @@ def overfit_to_one(args):
         config['training']['lr']
     )
 
+    train_log = StatLogger("train")
     for _ in range(500):
         model.train()
-        log = iterate_through_data(
-            model, single_point_dataloader, device, "train", 
+        iterate_through_data(
+            model, single_point_dataloader, device, "train", train_log,
             optimizer = optimizer, with_wandb = args.with_wandb
         )
+    train_log.log_graphs()
 
-        if not args.with_wandb:
-            print(log)
-    
     get_network_feedback(
         model, single_point_dataset, 
         "examples",
