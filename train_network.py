@@ -76,11 +76,12 @@ def main(args):
         wandb.watch(model)
     
     epochs = config['training']['epochs']
+    train_log = StatLogger("train")
+    val_log = StatLogger("val")
     for epoch in range(epochs):
-        
         model.train()
         iterate_through_data(
-            model, train_dataloader, device, "train", 
+            model, train_dataloader, device, "train", train_log, 
             optimizer = optimizer, with_wandb = args.with_wandb
         )
         
@@ -94,7 +95,7 @@ def main(args):
         model.eval()
         with torch.inference_mode():
             iterate_through_data(
-                model, val_dataloader, device, "val", 
+                model, val_dataloader, device, "val", val_log,
                 with_wandb = args.with_wandb
             )
 
@@ -156,7 +157,7 @@ def overfit_to_one(args):
             model, single_point_dataloader, device, "train", train_log,
             optimizer = optimizer, with_wandb = args.with_wandb
         )
-    train_log.log_graphs()
+    # train_log.log_graphs()
 
     get_network_feedback(
         model, single_point_dataset, 

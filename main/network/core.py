@@ -10,7 +10,8 @@ from main.config import \
 import torch
 from torch import nn
 from torchmetrics.functional.classification import \
-    multiclass_f1_score, binary_f1_score
+    multiclass_f1_score, multiclass_accuracy
+import numpy as np
 
 # Full implementation of the model end to end 
 class ModelCore(nn.Module):
@@ -75,7 +76,6 @@ class ModelCore(nn.Module):
     ):
         src_e = self.object_encoder(src)
         src_e = self.positional_encoding(src_e)
-
         memory = self.transformer_encoder(
             src_e, 
             src_key_padding_mask=src_padding_mask
@@ -83,8 +83,8 @@ class ModelCore(nn.Module):
 
         tgt_e = self.structure_embedding(tgt.int())
         tgt_e = self.positional_encoding(tgt_e)
-        tgt_fill_counter_e = self.to_fill_embedding(tgt_fill_counter.int())
-        tgt_e += tgt_fill_counter_e
+        # tgt_fill_counter_e = self.to_fill_embedding(tgt_fill_counter.int())
+        # tgt_e += tgt_fill_counter_e
 
         # Structure prediction 
         tgt_mask = generate_square_subsequent_mask(tgt.size()[0], device)
@@ -220,8 +220,9 @@ class ModelCore(nn.Module):
         total_structure_tokens = torch.sum(padding_mask).item()
         total_structure_correct = torch.sum((pred == gt) * padding_mask).item()
         structure_f1_score = multiclass_f1_score(
-            pred, gt, len(structure_vocab), ignore_index=structure_vocab_map['<pad>']
-        )
+            pred, gt, len(structure_vocab), ignore_index=structure_vocab_map['<pad>'],
+            average = "micro"
+        ).item()
 
         structure_accuracy = total_structure_correct / total_structure_tokens
         total_tokens += total_structure_tokens
@@ -247,8 +248,8 @@ class ModelCore(nn.Module):
         total_type_correct = torch.sum(pred == gt).item()
 
         constraint_type_f1_score = multiclass_f1_score(
-            pred, gt, len(constraint_types)
-        )
+            pred, gt, len(constraint_types), average = "micro"
+        ).item()
         type_accuracy = total_type_correct / total_type_tokens
 
         total_tokens += total_type_tokens
@@ -261,8 +262,8 @@ class ModelCore(nn.Module):
         total_object_correct = torch.sum(pred == gt).item()
         
         object_selection_f1_score = multiclass_f1_score(
-            pred, gt, objects_max_length
-        )
+            pred, gt, objects_max_length, average = "micro"
+        ).item()
         object_accuracy = total_object_correct / total_object_tokens
 
         total_tokens += total_object_tokens
@@ -274,17 +275,14 @@ class ModelCore(nn.Module):
         gt = constraints_flattened[:, 3]
         total_direction_correct = torch.sum((pred == gt)).item()
 
-        if total_direction_tokens:
-            direction_accuracy = total_direction_correct / total_direction_tokens
-        else:
-            direction_accuracy = 1.0
+        direction_accuracy = total_direction_correct / total_direction_tokens
 
         total_tokens += total_direction_tokens
         total_correct_tokens += total_direction_correct 
 
         direction_f1_score = multiclass_f1_score(
-            pred, gt, len(direction_types)
-        )
+            pred, gt, len(direction_types), average = "micro"
+        ).item()
         total_accuracy = total_correct_tokens / total_tokens 
         
         statistics = {
@@ -302,4 +300,5 @@ class ModelCore(nn.Module):
                 "direction" : direction_f1_score
             }
         }
+
         return statistics
