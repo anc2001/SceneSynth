@@ -87,9 +87,7 @@ class ModelCore(nn.Module):
         # tgt_e += tgt_fill_counter_e
 
         # Structure prediction 
-        tgt_mask = generate_square_subsequent_mask(tgt.size()[0], device)
-        tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
-        tgt_mask = tgt_mask.expand(src.shape[1] * self.nhead, -1, -1)
+        tgt_mask = generate_square_subsequent_mask(tgt.size(0), tgt.size(1), self.nhead, device)
 
         decoded_output = self.transformer_decoder(
             tgt_e, 
@@ -130,9 +128,7 @@ class ModelCore(nn.Module):
         constraint_only_mask = torch.tensor([0, 1, 1, 1, 1, 1]).bool().to(device)
         while len(tgt) < self.max_program_length:
             # Regenerate the mask because lol? 
-            tgt_mask = generate_square_subsequent_mask(tgt.size()[0], device)
-            tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
-            tgt_mask = tgt_mask.expand(src.shape[1] * self.nhead, -1, -1)
+            tgt_mask = generate_square_subsequent_mask(tgt.size(0), tgt.size(1), self.nhead, device)
 
             decoded_output = self.transformer_decoder(tgt_e, memory, tgt_mask = tgt_mask)
             logits = torch.squeeze(self.structure_head(decoded_output[-1]))

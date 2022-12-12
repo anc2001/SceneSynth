@@ -118,10 +118,7 @@ class ConstraintDecoderModel(nn.Module):
 
         memory = self.transformer_encoder(context, src_key_padding_mask = context_padding)
 
-        tgt_mask = generate_square_subsequent_mask(s_e.size()[0], device)
-        tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
-        tgt_mask = tgt_mask.expand(s_e.shape[1] * self.nhead, -1, -1)
-
+        tgt_mask = generate_square_subsequent_mask(s_e.size(0), s_e.size(1), self.nhead, device)
         decoded_outputs = self.transformer_decoder(
             s_e, memory, 
             tgt_mask = tgt_mask,
@@ -222,10 +219,7 @@ class ConstraintDecoderModel(nn.Module):
         absolute_index = 0
         current_constraint = []
         while constraints_left:
-            tgt_mask = generate_square_subsequent_mask(s_e.size()[0], device)
-            tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
-            tgt_mask = tgt_mask.expand(s_e.shape[1] * self.nhead, -1, -1)
-
+            tgt_mask = generate_square_subsequent_mask(c_e.size(0), c_e.size(1), self.nhead, device)
             decoded_outputs = self.transformer_decoder(c_e, memory, tgt_mask = tgt_mask)
             head = decoded_outputs[-1]
             if relative_index == 0: # predict type 
