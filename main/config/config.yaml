@@ -1,5 +1,5 @@
-project: overfit_to_one
-name: test
+project: bedroom_filtered
+name: test_run
 
 architecture:
   d_model: 128
@@ -8,7 +8,7 @@ architecture:
   loss: cross_entropy
 
 training:
-  epochs: 5
+  epochs: 1
   batch_size: 64
   lr: 0.0003
   optimizer: adam

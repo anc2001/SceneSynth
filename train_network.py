@@ -34,9 +34,6 @@ def main(args):
             name = config['name'],
             config = config
         )
-    
-    # wandb.define_metric("batch")
-    # wandb.define_metric("epoch")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -81,8 +78,8 @@ def main(args):
     for epoch in range(epochs):
         model.train()
         iterate_through_data(
-            model, train_dataloader, device, "train", train_log, 
-            optimizer = optimizer, with_wandb = args.with_wandb
+            model, train_dataloader, device, "train", 
+            logger = train_log, optimizer = optimizer, with_wandb = args.with_wandb
         )
         
         get_network_feedback(
@@ -95,8 +92,8 @@ def main(args):
         model.eval()
         with torch.inference_mode():
             iterate_through_data(
-                model, val_dataloader, device, "val", val_log,
-                with_wandb = args.with_wandb
+                model, val_dataloader, device, "val", 
+                logger = val_log, with_wandb = args.with_wandb
             )
 
             get_network_feedback(
@@ -106,13 +103,14 @@ def main(args):
                 with_wandb = args.with_wandb
             )
     
+    test_log = StatLogger("test")
     iterate_through_data(
         model, test_dataloader, device, "test", 
-        with_wandb = args.with_wandb
+        logger = test_log, with_wandb = args.with_wandb
     )
     
-    # model_save = os.path.join(data_filepath, "model.pt")
-    # save_model(model, model_save)
+    model_save = os.path.join(data_filepath, "model.pt")
+    save_model(model, model_save)
 
 def overfit_to_one(args):
     config = load_config(args.config)
@@ -169,5 +167,5 @@ def overfit_to_one(args):
 
 if __name__ == '__main__':
     args = parseArguments()
-    # main(args)
-    overfit_to_one(args)
+    main(args)
+    # overfit_to_one(args)

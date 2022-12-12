@@ -90,7 +90,6 @@ def exposure_bias(
     tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
     objects_max_length
 ):
-    # Corrupt structure [T_S, N] - randomly flip token 
     T_S = tgt.size(0)
     T_C = tgt_c.size(0)
     tgt_corrupt = torch.clone(tgt)
@@ -98,7 +97,8 @@ def exposure_bias(
     for sequence_idx in range(tgt.size(1)):
         # Structure 
         num_tokens = T_S - torch.sum(tgt_padding_mask[sequence_idx, :]).item()
-        changed_token_idx = np.random.choice(int(num_tokens * 0.5)) 
+        sample_length = int(num_tokens * 0.5)
+        changed_token_idx = np.random.choice(sample_length) if sample_length else 0
         token = tgt[changed_token_idx, sequence_idx].item()
         new_token = token
         while new_token == token:
@@ -106,8 +106,9 @@ def exposure_bias(
         tgt_corrupt[changed_token_idx, sequence_idx] = new_token
 
         # Constraints 
-        num_constraints = T_C - torch.sum(tgt_c_padding_mask[sequence_idx, :]).item()
-        changed_constraint_idx = np.random.choice(int(num_constraints * 0.5))
+        num_constraints = T_C - torch.sum(tgt_c_padding_mask[:, sequence_idx]).item()
+        sample_length = int(num_constraints * 0.5)
+        changed_constraint_idx = np.random.choice(sample_length) if sample_length else 0
         relative_index = np.random.choice(4) 
         token = tgt_c[changed_constraint_idx, sequence_idx, relative_index].item()
         new_token = token
@@ -175,8 +176,8 @@ def exposure_bias(
     return log
 
 def iterate_through_data(
-    model, dataloader, device, type, logger,
-    optimizer=None, with_wandb = False
+    model, dataloader, device, type, 
+    logger = None, optimizer=None, with_wandb = False
 ):     
     for vals in tqdm(dataloader):
         # Extract vals from dataloader 
@@ -234,5 +235,6 @@ def iterate_through_data(
                 tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types, 
                 objects_max_length
             )
-
-        logger.log(log)
+        
+        if with_wandb:
+            logger.log(log, accum = type == "test")
