@@ -120,7 +120,7 @@ class ModelCore(nn.Module):
         tgt = torch.tensor([[structure_vocab_map['<sos>']]]).to(device)
         tgt_e = self.structure_embedding(tgt.int())
         tgt_e = self.positional_encoding(tgt_e)
-        tgt_e += self.to_fill_embedding(torch.tensor([1]).int())
+        # tgt_e += self.to_fill_embedding(torch.tensor([1]).int())
 
         # guarantee program 
         # Base mask with <sos>, <eos>, and <pad> masked out 
@@ -129,7 +129,12 @@ class ModelCore(nn.Module):
         need_to_end = False
         constraint_only_mask = torch.tensor([0, 1, 1, 1, 1, 1]).bool().to(device)
         while len(tgt) < self.max_program_length:
-            decoded_output = self.transformer_decoder(tgt_e, memory)
+            # Regenerate the mask because lol? 
+            tgt_mask = generate_square_subsequent_mask(tgt.size()[0], device)
+            tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
+            tgt_mask = tgt_mask.expand(src.shape[1] * self.nhead, -1, -1)
+
+            decoded_output = self.transformer_decoder(tgt_e, memory, tgt_mask = tgt_mask)
             logits = torch.squeeze(self.structure_head(decoded_output[-1]))
             # guarantee program 
             if guarantee_program:
@@ -165,6 +170,7 @@ class ModelCore(nn.Module):
             if predicted_token == structure_vocab_map['<eos>']:
                 break
 
+        
         # Then predict the constraints 
         num_constraints = torch.sum(tgt == structure_vocab_map['c']).item()
         constraints = self.constraint_decoder.infer(

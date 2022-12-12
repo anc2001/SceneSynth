@@ -2,10 +2,11 @@ from main.network import ModelCore, \
     optimizer_factory, loss_factory, \
     save_model, load_model
 from main.data_processing.dataset import \
-    get_dataset, get_dataloader
+    get_dataset, get_dataloader, collate_fn
 from main.network.usage import iterate_through_data, \
-    get_network_feedback
+    get_network_feedback, infer_program
 from main.network.stat_logger import StatLogger
+from main.common.utils import clear_folder, read_data
 
 from main.config import load_config, data_filepath
 from main.data_processing.dataset import get_dataloader
@@ -14,6 +15,7 @@ import torch
 import os
 import wandb
 from argparse import ArgumentParser
+import lovely_tensors as lt
 
 def parseArguments():
     parser = ArgumentParser()
@@ -124,11 +126,7 @@ def overfit_to_one(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     dataset = get_dataset()
     index = 0
-    
-    # (scene, query_object), program_tokens = dataset[index]
-    # print(program_tokens['structure'])
-    # print(program_tokens['constraints'])
-    
+        
     single_point_dataset = torch.utils.data.Subset(dataset, [index])
     single_point_dataloader = get_dataloader(single_point_dataset, config['training']['batch_size'])
 
@@ -165,7 +163,58 @@ def overfit_to_one(args):
         with_wandb = args.with_wandb
     )
 
+def test_thing():
+    lt.monkey_patch()
+
+    config = load_config(args.config)
+    model = ModelCore(
+        d_model = config['architecture']['d_model'],
+        nhead = config['architecture']['nhead'],
+        num_layers= config['architecture']['num_layers'],
+        max_num_objects = 50,
+        max_program_length= 30,
+        loss_func=loss_factory(config['architecture']['loss'])
+    )
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    load_model(model, os.path.join(data_filepath, "model.pt"))
+    model.to(device)
+
+    program_data = read_data(os.path.join(data_filepath, "program_data.pkl"))
+    xs = program_data['xs']
+    ys = program_data['ys']
+    
+    to_iterate = list(zip(xs, ys))
+    item = to_iterate[0]
+    (scene, query_object) = item[0]
+    program_tokens = item[1]
+
+    with torch.inference_mode():
+        model.eval()
+        (
+            src, src_padding_mask, 
+            tgt, tgt_padding_mask, tgt_fill_counter, 
+            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            objects_max_length
+        ) = collate_fn([item])
+
+        structure_preds, constraint_preds = model(
+            src, src_padding_mask, 
+            tgt, tgt_padding_mask, tgt_fill_counter,
+            tgt_c, tgt_c_padding_mask, 
+            device
+        )
+
+        statistics = model.accuracy_fnc(
+            structure_preds, 
+            constraint_preds,
+            tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            objects_max_length
+        )
+
+        program = infer_program(model, scene, query_object, device)
+
 if __name__ == '__main__':
     args = parseArguments()
-    main(args)
+    # main(args)
     # overfit_to_one(args)
+    test_thing()

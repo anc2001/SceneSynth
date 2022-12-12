@@ -124,6 +124,7 @@ class ConstraintDecoderModel(nn.Module):
 
         decoded_outputs = self.transformer_decoder(
             s_e, memory, 
+            tgt_mask = tgt_mask,
             tgt_key_padding_mask = s_e_padding, 
             memory_key_padding_mask = context_padding
         )
@@ -132,7 +133,7 @@ class ConstraintDecoderModel(nn.Module):
         reference_selections = []
         direction_selections = []
         indices = torch.arange(decoded_outputs.size(0))
-        indices = indices[indices % 4 != 1]
+        indices = indices[indices % 4 != 1] # Skip query 
         for i in indices:
             head = decoded_outputs[i]
             if i % 4 == 0:
@@ -221,7 +222,11 @@ class ConstraintDecoderModel(nn.Module):
         absolute_index = 0
         current_constraint = []
         while constraints_left:
-            decoded_outputs = self.transformer_decoder(c_e, memory)
+            tgt_mask = generate_square_subsequent_mask(s_e.size()[0], device)
+            tgt_mask = torch.unsqueeze(tgt_mask, dim = 0)
+            tgt_mask = tgt_mask.expand(s_e.shape[1] * self.nhead, -1, -1)
+
+            decoded_outputs = self.transformer_decoder(c_e, memory, tgt_mask = tgt_mask)
             head = decoded_outputs[-1]
             if relative_index == 0: # predict type 
                 logits = self.type_head(head)
