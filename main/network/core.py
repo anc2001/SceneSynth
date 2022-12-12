@@ -158,7 +158,7 @@ class ModelCore(nn.Module):
             
             to_add_e = self.structure_embedding(to_add.int())
             to_add_e = self.positional_encoding.encode_single(to_add_e, len(tgt))
-            to_add_e += self.to_fill_embedding(torch.tensor([num_spots_to_fill]).int())
+            # to_add_e += self.to_fill_embedding(torch.tensor([num_spots_to_fill]).int())
             tgt = torch.cat([tgt, to_add], dim = 0)
             tgt_e = torch.cat([tgt_e, to_add_e], dim = 0)
 

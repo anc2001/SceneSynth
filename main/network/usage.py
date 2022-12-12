@@ -98,28 +98,29 @@ def exposure_bias(
     for sequence_idx in range(tgt.size(1)):
         # Structure 
         num_tokens = T_S - torch.sum(tgt_padding_mask[sequence_idx, :]).item()
-        changed_token_idx = np.random.choice(int(num_tokens * 0.25)) # Choose from the first quarter 
-        token = tgt[changed_token_idx, sequence_idx]
+        changed_token_idx = np.random.choice(int(num_tokens * 0.5)) 
+        token = tgt[changed_token_idx, sequence_idx].item()
         new_token = token
         while new_token == token:
             new_token = np.random.choice(4)
         tgt_corrupt[changed_token_idx, sequence_idx] = new_token
 
         # Constraints 
-        num_tokens = T_C- torch.sum(tgt_c_padding_mask[sequence_idx, :]).item()
-        changed_token_idx = np.random.choice(int(num_tokens * 0.25)) # Choose from the first quarter 
-        relative_index = changed_token_idx % 4
-        token = tgt_c[changed_token_idx, sequence_idx]
+        num_constraints = T_C - torch.sum(tgt_c_padding_mask[sequence_idx, :]).item()
+        changed_constraint_idx = np.random.choice(int(num_constraints * 0.5))
+        relative_index = np.random.choice(4) 
+        token = tgt_c[changed_constraint_idx, sequence_idx, relative_index].item()
         new_token = token
         if relative_index == 0:
             while new_token == token:
                 new_token = np.random.choice(len(constraint_types))
         if relative_index == 0 or relative_index == 2:
-            new_token = np.random.choice(token)
+            if token > 0:
+                new_token = np.random.choice(int(token))
         elif relative_index == 3:
             while new_token == token:
                 new_token = np.random.choice(len(direction_types))
-        tgt_c_corrupt[changed_token_idx, sequence_idx] = new_token
+        tgt_c_corrupt[changed_token_idx, sequence_idx, relative_index] = new_token
 
     # Only structure 
     structure_preds, constraint_preds = model(

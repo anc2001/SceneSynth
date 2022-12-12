@@ -18,13 +18,14 @@ class StatLogger():
             f1_log[self.type + "/f1_score/" + key] = log["f1_score"][key]
         wandb.log(f1_log, step=self.step)
 
-        if type == "train":
+        if self.type == "train":
             for exposure_bias_type in log["exposure_bias"]:
                 accuracy_log = {}
-                for key in log[exposure_bias_type]["accuracy"]:
+                exposure_bias_log = log["exposure_bias"][exposure_bias_type]
+                for key in exposure_bias_log:
                     accuracy_log[
-                        self.type + f"/{exposure_bias_type}/" + "/accuracy/" + key
-                    ] = log["accuracy"][exposure_bias_type][key]
+                        self.type + f"/{exposure_bias_type}/accuracy/" + key
+                    ] = exposure_bias_log[key]
                 wandb.log(accuracy_log, step=self.step)
 
         self.step += 1
