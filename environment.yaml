@@ -19,3 +19,4 @@ dependencies:
   - pip:
     - open3d
     - numba 
+    - lovely-tensors

@@ -1,5 +1,5 @@
 project: bedroom_filtered
-name: test_run
+name: run
 
 architecture:
   d_model: 128
@@ -8,7 +8,7 @@ architecture:
   loss: cross_entropy
 
 training:
-  epochs: 1
+  epochs: 2
   batch_size: 64
   lr: 0.0003
   optimizer: adam
