@@ -49,19 +49,15 @@ class StatLogger():
         self.step += 1
 
     def get_summary(self):
-        average_loss = np.mean(self.stats["loss"])
-        accuracy_metric = {}
+        summary = dict()
+        summary["loss"] = np.mean(self.stats["loss"])
+        
         for key in self.stats["accuracy"]:
-            accuracy_metric[key] = np.mean(self.stats["accuracy"][key])
-        f1_metric = {}
-        for key in self.stats["f1_score"]:
-            f1_metric[key] = np.mean(self.stats["f1_score"][key])
+            summary[f"accuracy/{key}"] = np.mean(self.stats["accuracy"][key])
 
-        summary = {
-            "loss" : average_loss,
-            "accuracy" : accuracy_metric,
-            "f1_score" : f1_metric
-        }
+        for key in self.stats["f1_score"]:
+            summary[f"f1_score/{key}"] = np.mean(self.stats["f1_score"][key])
+
         return summary
 
 

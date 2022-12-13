@@ -9,17 +9,16 @@ from main.common.language import ProgramTree, verify_program
 import wandb
 import matplotlib.pyplot as plt
 
-def get_network_feedback(model, dataset, base_tag, device, num_examples = 5, with_wandb = False):
+def get_network_feedback(model, dataset, base_tag, device, num_examples = 10, with_wandb = False):
     print("Getting network feedback")
     indices = np.array(dataset.indices)
     np.random.shuffle(indices)
     program_dataset = dataset.dataset
 
-    columns = ["type", "feedback"]
+    columns = ["type", "feedback", "inferred", "ground_truth"]
     data = []
 
-    tags = [base_tag + f"/example_{i}" for i in range(num_examples)]
-    for tag, idx in tqdm(zip(tags, indices[:num_examples]), total=len(tags)):
+    for idx in tqdm(indices[:num_examples]):
         (scene, query_object), ground_truth_program_tokens = program_dataset[idx]
         data_entry = []
         inferred_tokens = infer_program(model, scene, query_object, device)
@@ -36,7 +35,6 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 5, wit
                 scene, query_object, device, 
                 guarantee_program=True
             )
-        data.append(data_entry)
         
         validity, feedback = verify_program(inferred_tokens, len(scene.objects))
         # sanity check 
@@ -48,19 +46,24 @@ def get_network_feedback(model, dataset, base_tag, device, num_examples = 5, wit
         program.evaluate(scene, query_object)
         fig = program.print_program(scene, query_object)
 
-        if with_wandb:
-            wandb.log({tag + "_inferred": fig})
-            
+        fig.canvas.draw()
+        example_image = wandb.Image(np.array(fig.canvas.renderer.buffer_rgba()))
+        data_entry.append(example_image)
+
         plt.close(fig)
 
         program = ProgramTree()
         program.from_tokens(ground_truth_program_tokens)
         program.evaluate(scene, query_object)
         fig = program.print_program(scene, query_object)  
-    
-        if with_wandb:
-            wandb.log({tag + "_ground_truth": fig})
+
+        fig.canvas.draw()
+        example_image = wandb.Image(np.array(fig.canvas.renderer.buffer_rgba()))
+        data_entry.append(example_image)
+
         plt.close(fig)
+
+        data.append(data_entry)
     
     if with_wandb:
         table = wandb.Table(data=data, columns=columns)
@@ -120,4 +123,10 @@ def iterate_through_data(
     
     if with_wandb and type != "train":
         summary_stats = logger.get_summary()
-        wandb.log({type : summary_stats, "epoch" : epoch})
+        if type == "val":
+            wandb.log({type : summary_stats, "epoch" : epoch})
+        else:
+            # Log bar chart of test results 
+            data = [[label, value] for (label, value) in summary_stats.items()]
+            table = wandb.Table(data=data, columns = ["label", "value"])
+            wandb.log({"test" : wandb.plot.bar(table, "label" , "value", title= "Test metrics")})
