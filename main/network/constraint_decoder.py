@@ -210,10 +210,11 @@ class ConstraintDecoderModel(nn.Module):
         c_e = self.type_embedding(
             torch.tensor([[constraint_types_map['<sos>']]]).int()
         )
+        c_e = self.pe(c_e)
 
         constraints_left = num_constraints
         relative_index = 0
-        absolute_index = 0
+        absolute_index = 1
         current_constraint = []
         while constraints_left:
             tgt_mask = generate_square_subsequent_mask(c_e.size(0), c_e.size(1), self.nhead, device)
@@ -234,11 +235,7 @@ class ConstraintDecoderModel(nn.Module):
                 c_e_to_add = src_e[predicted_token]
             elif relative_index == 2: # predict reference object index
                 pointer_embedding = self.pointer_head(head)
-                logits = torch.tensordot(
-                    src_e[:, 0, :], 
-                    pointer_embedding[0], 
-                    dims = 1
-                )
+                logits = torch.tensordot(src_e[:, 0, :], pointer_embedding[0], dims = 1)
                 if guarantee_program:
                     logits[-1] = -float('inf')
                 

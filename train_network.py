@@ -183,7 +183,7 @@ def test_thing():
     ys = program_data['ys']
     
     to_iterate = list(zip(xs, ys))
-    item = to_iterate[129]
+    item = to_iterate[0]
     (scene, query_object) = item[0]
     program_tokens = item[1]
 
@@ -198,6 +198,6 @@ def test_thing():
 
 if __name__ == '__main__':
     args = parseArguments()
-    main(args)
+    # main(args)
     # overfit_to_one(args)
-    # test_thing()
+    test_thing()

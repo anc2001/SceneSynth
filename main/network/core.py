@@ -112,7 +112,6 @@ class ModelCore(nn.Module):
     def infer(self, src, device, guarantee_program=False):
         src_e = self.object_encoder(src)
         src_e = self.positional_encoding(src_e)
-
         memory = self.transformer_encoder(src_e)
 
         # First predict structure
