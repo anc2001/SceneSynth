@@ -40,31 +40,28 @@ class ConstraintDecoderModel(nn.Module):
         )
 
         self.type_head = nn.Sequential(
-            nn.Linear(d_model, 2 * d_model), # head
+            nn.Linear(d_model, 2 * d_model), 
             nn.LeakyReLU(),
             nn.Linear(2 * d_model, len(constraint_types))
         )
 
         self.pointer_head = nn.Sequential(
-            nn.Linear(d_model, 2 * d_model), # head
+            nn.Linear(d_model, 2 * d_model), 
             nn.LeakyReLU(),
             nn.Linear(2 * d_model, d_model)
         )
         
         self.direction_head = nn.Sequential(
-            nn.Linear(d_model, 2 * d_model), # head
+            nn.Linear(d_model, 2 * d_model), 
             nn.LeakyReLU(),
             nn.Linear(2 * d_model, len(direction_types))
         )
 
     def forward(
         self,
-        tgt_e, # tree structure embedding 
-        tgt_padding_mask,
-        tgt_c, 
-        tgt_c_padding_mask,
-        src_e, # Objects 
-        src_padding_mask,
+        tgt_e, tgt_padding_mask,
+        tgt_c, tgt_c_padding_mask,
+        src_e, src_padding_mask,
         device
     ):
         batch_size = tgt_e.size(1)

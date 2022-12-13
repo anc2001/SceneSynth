@@ -94,8 +94,8 @@ def main(args):
         model.eval()
         with torch.inference_mode():
             iterate_through_data(
-                model, val_dataloader, device, "val", 
-                logger = val_log, with_wandb = args.with_wandb
+                model, val_dataloader, device, "val",
+                epoch = epoch, logger = val_log, with_wandb = args.with_wandb
             )
 
             get_network_feedback(
@@ -153,7 +153,6 @@ def overfit_to_one(args):
             model, single_point_dataloader, device, "train", train_log,
             optimizer = optimizer, with_wandb = args.with_wandb
         )
-    # train_log.log_graphs()
 
     get_network_feedback(
         model, single_point_dataset, 
@@ -184,37 +183,21 @@ def test_thing():
     ys = program_data['ys']
     
     to_iterate = list(zip(xs, ys))
-    item = to_iterate[0]
+    item = to_iterate[129]
     (scene, query_object) = item[0]
     program_tokens = item[1]
 
     with torch.inference_mode():
         model.eval()
-        (
-            src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-            objects_max_length
-        ) = collate_fn([item])
+        collated_vals = collate_fn([item])
 
-        structure_preds, constraint_preds = model(
-            src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter,
-            tgt_c, tgt_c_padding_mask, 
-            device
-        )
-
-        statistics = model.accuracy_fnc(
-            structure_preds, 
-            constraint_preds,
-            tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-            objects_max_length
-        )
+        structure_preds, constraint_preds = model(collated_vals, device)
+        statistics = model.accuracy_fnc(structure_preds, constraint_preds, collated_vals)
 
         program = infer_program(model, scene, query_object, device)
 
 if __name__ == '__main__':
     args = parseArguments()
-    main(args)
+    # main(args)
     # overfit_to_one(args)
-    # test_thing()
+    test_thing()

@@ -83,130 +83,21 @@ def infer_program(model, scene, query_object, device, guarantee_program=False):
 
     return tokens
 
-# def exposure_bias(
-#     model, device,
-#     src, src_padding_mask, 
-#     tgt, tgt_padding_mask, tgt_fill_counter,
-#     tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-#     objects_max_length
-# ):
-#     T_S = tgt.size(0)
-#     T_C = tgt_c.size(0)
-#     tgt_corrupt = torch.clone(tgt)
-#     tgt_c_corrupt = torch.clone(tgt_c)
-#     for sequence_idx in range(tgt.size(1)):
-#         # Structure 
-#         num_tokens = T_S - torch.sum(tgt_padding_mask[sequence_idx, :]).item()
-#         sample_length = int(num_tokens * 0.5)
-#         changed_token_idx = np.random.choice(sample_length) if sample_length else 0
-#         token = tgt[changed_token_idx, sequence_idx].item()
-#         new_token = token
-#         while new_token == token:
-#             new_token = np.random.choice(4)
-#         tgt_corrupt[changed_token_idx, sequence_idx] = new_token
-
-#         # Constraints 
-#         num_constraints = T_C - torch.sum(tgt_c_padding_mask[:, sequence_idx]).item()
-#         sample_length = int(num_constraints * 0.5)
-#         changed_constraint_idx = np.random.choice(sample_length) if sample_length else 0
-#         relative_index = np.random.choice(4) 
-#         token = tgt_c[changed_constraint_idx, sequence_idx, relative_index].item()
-#         new_token = token
-#         if relative_index == 0:
-#             while new_token == token:
-#                 new_token = np.random.choice(len(constraint_types))
-#         if relative_index == 0 or relative_index == 2:
-#             if token > 0:
-#                 new_token = np.random.choice(int(token))
-#         elif relative_index == 3:
-#             while new_token == token:
-#                 new_token = np.random.choice(len(direction_types))
-#         tgt_c_corrupt[changed_token_idx, sequence_idx, relative_index] = new_token
-
-#     # Only structure 
-#     structure_preds, constraint_preds = model(
-#         src, src_padding_mask, 
-#         tgt_corrupt, tgt_padding_mask, tgt_fill_counter,
-#         tgt_c, tgt_c_padding_mask, 
-#         device
-#     )
-
-#     structure_only_statistics = model.accuracy_fnc(
-#         structure_preds, 
-#         constraint_preds,
-#         tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-#         objects_max_length
-#     )
-
-#     # Only constraints 
-#     structure_preds, constraint_preds = model(
-#         src, src_padding_mask, 
-#         tgt, tgt_padding_mask, tgt_fill_counter,
-#         tgt_c_corrupt, tgt_c_padding_mask, 
-#         device
-#     )
-
-#     constraint_only_statistics = model.accuracy_fnc(
-#         structure_preds, 
-#         constraint_preds,
-#         tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-#         objects_max_length
-#     )
-
-#     # Structure + constraints 
-#     structure_preds, constraint_preds = model(
-#         src, src_padding_mask, 
-#         tgt_corrupt, tgt_padding_mask, tgt_fill_counter,
-#         tgt_c_corrupt, tgt_c_padding_mask, 
-#         device
-#     )
-
-#     with_both_statistics = model.accuracy_fnc(
-#         structure_preds, 
-#         constraint_preds,
-#         tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-#         objects_max_length
-#     )
-
-#     log = {
-#         "corrupt_structure_accuracy" : structure_only_statistics["accuracy"],
-#         "corrupt_constraint_accuracy" : constraint_only_statistics["accuracy"],
-#         "corrupt_both_exposure_accuracy" : with_both_statistics["accuracy"]
-#     }
-#     return log
-
 def iterate_through_data(
     model, dataloader, device, type, 
-    logger = None, optimizer=None, with_wandb = False
+    epoch = 0, logger = None, 
+    optimizer=None, with_wandb = False
 ):     
     for vals in tqdm(dataloader):
-        # Extract vals from dataloader 
-        (
-            src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-            objects_max_length
-        ) = vals
-
         # Calculate for batch the max number of objects 
 
         if type == "train":
             optimizer.zero_grad()
-
-        structure_preds, constraint_preds = model(
-            src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter,
-            tgt_c, tgt_c_padding_mask, 
-            device
-        )
-
+        
+        # Forward Pass
+        structure_preds, constraint_preds = model(vals, device)
         # Compute Loss
-        loss = model.loss(  
-            structure_preds,          
-            constraint_preds,
-            tgt, tgt_padding_mask, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
-        )
+        loss = model.loss(structure_preds, constraint_preds, vals)
         
         if type == "train":
             # Backpropagation 
@@ -214,12 +105,7 @@ def iterate_through_data(
             # Update
             optimizer.step()
 
-        statistics = model.accuracy_fnc(
-            structure_preds, 
-            constraint_preds,
-            tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-            objects_max_length
-        )
+        statistics = model.accuracy_fnc(structure_preds, constraint_preds, vals)
 
         log = {
             "loss" : loss.item(),
@@ -227,14 +113,16 @@ def iterate_through_data(
             "f1_score" : statistics["f1_score"]
         }
         
-        # if type == "train":
-        #     log["exposure_bias"] = exposure_bias(
-        #         model, device, 
-        #         src, src_padding_mask, 
-        #         tgt, tgt_padding_mask, tgt_fill_counter, 
-        #         tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types, 
-        #         objects_max_length
-        #     )
-        
-        if with_wandb:
-            logger.log(log, accum = type == "test")
+        if with_wandb and type == "train":
+            logger.log(log)
+        else:
+            logger.accumulate(log)
+    
+    if with_wandb and type != "train":
+        summary_stats = logger.get_summary()
+        if type == "val":
+            wandb.log({type : summary_stats, "epoch" : epoch})
+        else:
+            data = [val for val in summary_stats.values()]
+            columns = [col for col in summary_stats.keys()]
+            wandb.log({type, wandb.Table(data = data, columns = columns)})

@@ -67,13 +67,14 @@ class ModelCore(nn.Module):
 
         self.constraint_decoder = ConstraintDecoderModel(self.d_model, nhead, num_layers, max_program_length)
 
-    def forward(
-        self, 
-        src, src_padding_mask, 
-        tgt, tgt_padding_mask, tgt_fill_counter,
-        tgt_c, tgt_c_padding_mask,
-        device
-    ):
+    def forward(self, collated_vals, device):
+        (
+            src, src_padding_mask, 
+            tgt, tgt_padding_mask, tgt_fill_counter, 
+            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            objects_max_length
+        ) = collated_vals 
+
         src_e = self.object_encoder(src)
         src_e = self.positional_encoding(src_e)
         memory = self.transformer_encoder(
@@ -177,13 +178,14 @@ class ModelCore(nn.Module):
         program_structure = [structure_vocab[index] for index in tgt[1:-1]]
         return program_structure, constraints
     
-    def loss(
-        self, 
-        structure_preds, 
-        constraint_preds, 
-        tgt, tgt_padding_mask, 
-        tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types
-    ):
+    def loss(self, structure_preds, constraint_preds, collated_vals):
+        (
+            src, src_padding_mask, 
+            tgt, tgt_padding_mask, tgt_fill_counter, 
+            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            objects_max_length
+        ) = collated_vals 
+
         y_structure_pred = torch.flatten(structure_preds, start_dim = 0, end_dim = 1)
         gt = torch.clone(tgt)
         y_structure_gt = torch.flatten(torch.roll(gt, -1, dims = 0), start_dim = 0, end_dim = 1)
@@ -203,13 +205,14 @@ class ModelCore(nn.Module):
         loss = torch.mean(structure_loss) + torch.mean(types_loss) + torch.mean(objects_loss + directions_loss)
         return loss
 
-    def accuracy_fnc(
-        self, 
-        structure_preds, 
-        constraint_preds,
-        tgt, tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
-        objects_max_length
-    ):
+    def accuracy_fnc(self, structure_preds, constraint_preds, collated_vals):
+        (
+            src, src_padding_mask, 
+            tgt, tgt_padding_mask, tgt_fill_counter, 
+            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            objects_max_length
+        ) = collated_vals 
+
         total_tokens = 0
         total_correct_tokens = 0
 

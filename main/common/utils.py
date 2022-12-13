@@ -18,8 +18,9 @@ def read_data(filepath):
 def vectorize_scene(scene, query_object):
     # Convert scene to object list and program to structures + constraints
     query_object_vector = query_object.vectorize(scene.objects[0])
-    query_object_vector[0, 4] = 0
-    query_object_vector[0, 5] = 0
+    query_object_vector[0, 4] = 0 # Position x
+    query_object_vector[0, 5] = 0 # Position y
+    query_object_vector[0, 6] = 0 # Rotation 
     scene_vector = np.append(
         scene.vectorize(),
         query_object_vector,
