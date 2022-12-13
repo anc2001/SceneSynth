@@ -145,14 +145,9 @@ class ConstraintDecoderModel(nn.Module):
             elif i % 4 == 2:
                 pointer_embedding = self.pointer_head(head) # predict reference object index 
                 
-                # Vectorize this begin 
                 reference_selection = []
                 for batch_idx in range(batch_size):
-                    logits = torch.tensordot(
-                        src_e[:, batch_idx, :], 
-                        pointer_embedding[batch_idx], 
-                        dims = 1
-                    )
+                    logits = torch.tensordot(src_e[:, batch_idx, :], pointer_embedding[batch_idx], dims = 1)
                     # Set all src padding as -infty so 0 during softmax 
                     logits[src_padding_mask[batch_idx]] = -float('inf')
                     if len(reference_selection):
@@ -232,7 +227,7 @@ class ConstraintDecoderModel(nn.Module):
                 
             elif relative_index == 1:
                 predicted_token = len(src_e) - 1
-                c_e_to_add = src_e[predicted_token]
+                c_e_to_add = torch.clone(src_e[predicted_token])
             elif relative_index == 2: # predict reference object index
                 pointer_embedding = self.pointer_head(head)
                 logits = torch.tensordot(src_e[:, 0, :], pointer_embedding[0], dims = 1)
