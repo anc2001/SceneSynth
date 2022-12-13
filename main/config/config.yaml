@@ -1,5 +1,5 @@
-project: dumb_test
-name: test_run
+project: bedroom_filtered
+name: query_object_rot_error
 
 architecture:
   d_model: 128
@@ -8,9 +8,9 @@ architecture:
   loss: cross_entropy
 
 training:
-  epochs: 1
+  epochs: 3
   batch_size: 64
   lr: 0.0003
   optimizer: adam
-  train_split: 0.1
-  val_split: 0.05
+  train_split: 0.85
+  val_split: 0.1

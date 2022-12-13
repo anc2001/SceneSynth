@@ -47,7 +47,7 @@ class StatLogger():
             self.stats["f1_score"][key].append(log["f1_score"][key])
 
         self.step += 1
-    
+
     def get_summary(self):
         average_loss = np.mean(self.stats["loss"])
         accuracy_metric = {}

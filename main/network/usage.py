@@ -120,9 +120,4 @@ def iterate_through_data(
     
     if with_wandb and type != "train":
         summary_stats = logger.get_summary()
-        if type == "val":
-            wandb.log({type : summary_stats, "epoch" : epoch})
-        else:
-            data = [val for val in summary_stats.values()]
-            columns = [col for col in summary_stats.keys()]
-            wandb.log({type, wandb.Table(data = data, columns = columns)})
+        wandb.log({type : summary_stats, "epoch" : epoch})

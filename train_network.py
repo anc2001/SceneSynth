@@ -198,6 +198,6 @@ def test_thing():
 
 if __name__ == '__main__':
     args = parseArguments()
-    # main(args)
+    main(args)
     # overfit_to_one(args)
-    test_thing()
+    # test_thing()
