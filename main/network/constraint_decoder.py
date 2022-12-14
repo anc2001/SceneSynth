@@ -236,7 +236,7 @@ class ConstraintDecoderModel(nn.Module):
                 
                 predicted_token = torch.argmax(logits)
                 predicted_token = predicted_token.item()
-                c_e_to_add = src_e[predicted_token]
+                c_e_to_add = torch.clone(src_e[predicted_token])
             elif relative_index == 3: # predict direction (if applicable)
                 logits = self.direction_head(head)
                 predicted_token = torch.argmax(logits, dim = 1)
