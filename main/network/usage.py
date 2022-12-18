@@ -113,7 +113,6 @@ def iterate_through_data(
         log = {
             "loss" : loss.item(),
             "accuracy" : statistics["accuracy"],
-            "f1_score" : statistics["f1_score"]
         }
         
         if with_wandb and type == "train":

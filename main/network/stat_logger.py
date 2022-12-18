@@ -14,12 +14,6 @@ class StatLogger():
                 "direction" : [],
                 "total" : []                
             },
-            "f1_score": {
-                "structure" : [],
-                "type" : [],
-                "object" : [],
-                "direction" : []
-            }
         }
     
     def log(self, log):
@@ -29,11 +23,6 @@ class StatLogger():
         for key in log["accuracy"]:
             accuracy_log[self.type + "/accuracy/" + key] = log["accuracy"][key]
         wandb.log(accuracy_log, step=self.step)
-        
-        f1_log = {}
-        for key in log["f1_score"]:
-            f1_log[self.type + "/f1_score/" + key] = log["f1_score"][key]
-        wandb.log(f1_log, step=self.step)
 
         self.step += 1
     
@@ -42,9 +31,6 @@ class StatLogger():
 
         for key in log["accuracy"]:
             self.stats["accuracy"][key].append(log["accuracy"][key])
-        
-        for key in log["f1_score"]:
-            self.stats["f1_score"][key].append(log["f1_score"][key])
 
         self.step += 1
 
@@ -54,9 +40,6 @@ class StatLogger():
         
         for key in self.stats["accuracy"]:
             summary[f"accuracy/{key}"] = np.mean(self.stats["accuracy"][key])
-
-        for key in self.stats["f1_score"]:
-            summary[f"f1_score/{key}"] = np.mean(self.stats["f1_score"][key])
 
         return summary
 

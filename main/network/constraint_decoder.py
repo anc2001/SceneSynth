@@ -126,7 +126,7 @@ class ConstraintDecoderModel(nn.Module):
         type_selections = []
         reference_selections = []
         direction_selections = []
-        indices = torch.arange(decoded_outputs.size(0))
+        indices = torch.arange(decoded_outputs.size(0) - 1)
         indices = indices[indices % 4 != 1] # Skip query 
         for i in indices:
             head = decoded_outputs[i]
@@ -186,7 +186,7 @@ class ConstraintDecoderModel(nn.Module):
                     direction_selections = torch.unsqueeze(direction_selection, dim = 0)
                 
         return (
-            torch.Tensor(type_selections[:-1]).to(device),
+            torch.Tensor(type_selections).to(device),
             torch.Tensor(reference_selections).to(device),
             torch.Tensor(direction_selections).to(device)
         )

@@ -39,10 +39,6 @@ class ModelCore(nn.Module):
             self.d_model, 
             structure_vocab_map['<pad>']
         )
-        self.to_fill_embedding = nn.Embedding(
-            max_program_length,
-            self.d_model
-        )
 
         self.positional_encoding = PositionalEncoding(self.d_model, max_len = max_num_objects)
 
@@ -70,8 +66,8 @@ class ModelCore(nn.Module):
     def forward(self, collated_vals, device):
         (
             src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            tgt, tgt_padding_mask,
+            tgt_c, tgt_c_padding_mask,
             objects_max_length
         ) = collated_vals 
 
@@ -84,8 +80,6 @@ class ModelCore(nn.Module):
 
         tgt_e = self.structure_embedding(tgt.int())
         tgt_e = self.positional_encoding(tgt_e)
-        # tgt_fill_counter_e = self.to_fill_embedding(tgt_fill_counter.int())
-        # tgt_e += tgt_fill_counter_e
 
         # Structure prediction 
         tgt_mask = generate_square_subsequent_mask(tgt.size(0), tgt.size(1), self.nhead, device)
@@ -118,7 +112,6 @@ class ModelCore(nn.Module):
         tgt = torch.tensor([[structure_vocab_map['<sos>']]]).to(device)
         tgt_e = self.structure_embedding(tgt.int())
         tgt_e = self.positional_encoding(tgt_e)
-        # tgt_e += self.to_fill_embedding(torch.tensor([1]).int())
 
         # guarantee program 
         # Base mask with <sos>, <eos>, and <pad> masked out 
@@ -159,7 +152,7 @@ class ModelCore(nn.Module):
             
             to_add_e = self.structure_embedding(to_add.int())
             to_add_e = self.positional_encoding.encode_single(to_add_e, len(tgt))
-            # to_add_e += self.to_fill_embedding(torch.tensor([num_spots_to_fill]).int())
+
             tgt = torch.cat([tgt, to_add], dim = 0)
             tgt_e = torch.cat([tgt_e, to_add_e], dim = 0)
 
@@ -180,8 +173,8 @@ class ModelCore(nn.Module):
     def loss(self, structure_preds, constraint_preds, collated_vals):
         (
             src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            tgt, tgt_padding_mask, 
+            tgt_c, tgt_c_padding_mask,
             objects_max_length
         ) = collated_vals 
 
@@ -197,7 +190,7 @@ class ModelCore(nn.Module):
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
         type_selections, object_selections, direction_selections = constraint_preds
 
-        types_loss = self.loss_fnc(type_selections[~tgt_c_padding_mask_types], tgt_c[~tgt_c_padding_mask_types][:, 0].long())
+        types_loss = self.loss_fnc(type_selections[~tgt_c_padding_mask], constraints_flattened[:, 0].long())
         objects_loss = self.loss_fnc(object_selections[~tgt_c_padding_mask], constraints_flattened[:, 2].long())
         directions_loss  = self.loss_fnc(direction_selections[~tgt_c_padding_mask], constraints_flattened[:, 3].long())
 
@@ -207,8 +200,8 @@ class ModelCore(nn.Module):
     def accuracy_fnc(self, structure_preds, constraint_preds, collated_vals):
         (
             src, src_padding_mask, 
-            tgt, tgt_padding_mask, tgt_fill_counter, 
-            tgt_c, tgt_c_padding_mask, tgt_c_padding_mask_types,
+            tgt, tgt_padding_mask, 
+            tgt_c, tgt_c_padding_mask,
             objects_max_length
         ) = collated_vals 
 
@@ -223,10 +216,6 @@ class ModelCore(nn.Module):
 
         total_structure_tokens = torch.sum(padding_mask).item()
         total_structure_correct = torch.sum((pred == gt) * padding_mask).item()
-        structure_f1_score = multiclass_f1_score(
-            pred, gt, len(structure_vocab), ignore_index=structure_vocab_map['<pad>'],
-            average = "micro"
-        ).item()
 
         structure_accuracy = total_structure_correct / total_structure_tokens
         total_tokens += total_structure_tokens
@@ -236,24 +225,19 @@ class ModelCore(nn.Module):
 
         # Initialize relevant tensors 
         type_selections, object_selections, direction_selections = constraint_preds
-        type_selections = type_selections[~tgt_c_padding_mask_types]
+        type_selections = type_selections[~tgt_c_padding_mask]
         object_selections = object_selections[~tgt_c_padding_mask]
         direction_selections = direction_selections[~tgt_c_padding_mask]
 
-        n_c_types = type_selections.size(0)
         n_c = object_selections.size(0)
-        constraints_flattened_types = tgt_c[~tgt_c_padding_mask_types]
         constraints_flattened = tgt_c[~tgt_c_padding_mask]
 
         # Constraint type accuracy 
-        total_type_tokens = n_c_types
+        total_type_tokens = n_c
         pred = torch.argmax(type_selections, dim = 1)
-        gt = constraints_flattened_types[:, 0]
+        gt = constraints_flattened[:, 0]
         total_type_correct = torch.sum(pred == gt).item()
 
-        constraint_type_f1_score = multiclass_f1_score(
-            pred, gt, len(constraint_types), average = "micro"
-        ).item()
         type_accuracy = total_type_correct / total_type_tokens
 
         total_tokens += total_type_tokens
@@ -265,9 +249,6 @@ class ModelCore(nn.Module):
         gt = constraints_flattened[:, 2]
         total_object_correct = torch.sum(pred == gt).item()
         
-        object_selection_f1_score = multiclass_f1_score(
-            pred, gt, objects_max_length, average = "micro"
-        ).item()
         object_accuracy = total_object_correct / total_object_tokens
 
         total_tokens += total_object_tokens
@@ -284,9 +265,6 @@ class ModelCore(nn.Module):
         total_tokens += total_direction_tokens
         total_correct_tokens += total_direction_correct 
 
-        direction_f1_score = multiclass_f1_score(
-            pred, gt, len(direction_types), average = "micro"
-        ).item()
         total_accuracy = total_correct_tokens / total_tokens 
         
         statistics = {
@@ -297,12 +275,6 @@ class ModelCore(nn.Module):
                 "direction" : direction_accuracy,
                 "total" : total_accuracy                
             },
-            "f1_score": {
-                "structure" : structure_f1_score,
-                "type" : constraint_type_f1_score,
-                "object" : object_selection_f1_score,
-                "direction" : direction_f1_score
-            }
         }
 
         return statistics
