@@ -7,7 +7,7 @@ from main.executor import convert_mask_to_image
 from main.config import \
     constraint_types, direction_types, object_types, \
     constraint_types_map, \
-    grid_size
+    grid_size, num_angles
 
 def draw_graph(graph, label_dict, reference_dict, figsize=(15, 15)):
     # same layout using matplotlib with no labels
@@ -64,12 +64,17 @@ def visualize_program(program_tree, scene, query_object):
         if node.is_leaf():
             image = convert_mask_to_image(node.mask, scene_image)
             constraint = node.constraint
-
+            
+            if constraint[2]:
+                direction_idx = constraint[3]
+            else:
+                direction_idx = constraint[3] + int(num_angles / 2)
+                direction_idx = direction_idx % num_angles
             label = [
                 constraint_types[constraint[0]],
                 f"object_{constraint[1]}",
                 f"object_{constraint[2]}",
-                direction_types[constraint[3]]
+                direction_types[direction_idx]
             ]
             
             label = "\n".join(label)

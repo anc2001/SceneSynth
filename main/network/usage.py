@@ -108,7 +108,7 @@ def iterate_through_data(
             # Update
             optimizer.step()
 
-        statistics = model.accuracy_fnc(structure_preds, constraint_preds, vals)
+        statistics = model.evaluate_metrics(structure_preds, constraint_preds, vals)
 
         log = {
             "loss" : loss.item(),

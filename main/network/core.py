@@ -197,7 +197,7 @@ class ModelCore(nn.Module):
         loss = torch.mean(structure_loss) + torch.mean(types_loss) + torch.mean(objects_loss + directions_loss)
         return loss
 
-    def accuracy_fnc(self, structure_preds, constraint_preds, collated_vals):
+    def evaluate_metrics(self, structure_preds, constraint_preds, collated_vals):
         (
             src, src_padding_mask, 
             tgt, tgt_padding_mask, 
