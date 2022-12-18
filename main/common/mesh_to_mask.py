@@ -1,10 +1,6 @@
-from main.common.utils import read_data
-from main.config import data_filepath
-
 from numba import jit
 import math
 import numpy as np 
-import os
 
 def get_triangles(verts, faces):
     for face in faces:
@@ -97,7 +93,4 @@ def render_mesh(verts, faces, bbox=None, img_size=256, flat=False):
 
     return img
 
-def temp():
-    files = read_data(os.path.join(data_filepath, "kai_parse.pkl"))
-    scene = files[0]
-    img = render_mesh(scene['floor_plan']['vertices'], scene['floor_plan']['faces'])
+            

@@ -1,13 +1,15 @@
-from main.common.utils import powerset,\
-    write_triangle_to_image, \
-    write_triangle_to_mask, \
-    read_data
 from main.common.object import Furniture, get_object
 from main.config import data_filepath, grid_size, colors
 from main.common.mesh_to_mask import render_mesh
 
+from itertools import chain, combinations
 import numpy as np
 import open3d as o3d
+
+def powerset(iterable):
+    "powerset([1,2,3]) --> () (1,) (2,) (3,) (1,2) (1,3) (2,3) (1,2,3)"
+    s = list(iterable)
+    return chain.from_iterable(combinations(s, r) for r in range(len(s)+1))
 
 class Scene():
     """
@@ -117,12 +119,10 @@ class Scene():
         image = np.zeros((grid_size, grid_size, 3))
         image[:, :, :] = colors['outside']
 
-        # Mask all points inside 
-        for face in self.faces:
-            triangle = self.vertices[face]
-            write_triangle_to_image(triangle, self.corner_pos, self.cell_size, image, colors['inside'])
-        
-        if not empty:
+        if empty:
+            wall = self.objects[0]
+            wall.write_to_image(self.corner_pos, self.cell_size, image)
+        else:
             for object in self.objects:
                 object.write_to_image(self.corner_pos, self.cell_size, image)
             if with_query_object:
@@ -131,62 +131,21 @@ class Scene():
         image = np.rot90(image, axes=(0,1))
         return image
     
-    # Use Kai's code to write a more optimized version
-    # def convert_to_image(self, query_object=None, empty=False, with_query_object=False):
-    #     room_img = render_mesh(self.vertices, self.faces)
-    #     room_img[room_img == 0] = colors['outside']
-
-    #     image = np.rot90(room_img, axes=(0,1))
-    #     return image
-    
-    def check_if_objects_inside(self, analytic=True):
-        if analytic:
-            min = np.amin(self.vertices, axis = 0)
-            max = np.amax(self.vertices, axis = 0)
-            for object in self.objects[1:]:
-                sub_quad = np.clip(object.bbox.vertices, min, max)
-                extent = np.amax(sub_quad, axis = 0) - np.amin(sub_quad, axis = 0)
-                area = extent[0] * extent[2]
-                area_outside = object.area() - area
-                if area_outside > pow(self.cell_size, 2) * 500:
-                    return False
-            return True
-        else:
-            room_mask = np.zeros((grid_size, grid_size))
-            for face in self.faces:
-                triangle = self.vertices[face]
-                write_triangle_to_mask(triangle, self.corner_pos, self.cell_size, room_mask)
-            
-            for object in self.objects[1:]:
-                object_mask = np.array(room_mask)
-                for face in object.bbox.faces:
-                    triangle = object.bbox.vertices[face]
-                    write_triangle_to_mask(triangle, self.corner_pos, self.cell_size, object_mask)
-                # Ideally this mask is empty -> all points in the object are inside
-                disagreement = np.logical_xor(room_mask, object_mask)
-                if np.sum(disagreement) > 500:
-                    return False
-            return True
-    
-    # def convert_to_mask(self):
-    #     # 1 invalid space
-    #     # 0 empty (valid) space
-    #     mask = np.zeros((grid_size, grid_size))
-    #     for face in self.faces:
-    #         triangle = self.vertices[face]
-    #         write_triangle_to_mask(triangle, self, mask)
-        
-    #     mask = (~mask.astype(bool)).astype(int)
-
-    #     for object in self.objects:
-    #         object.write_to_mask(self, mask)
-        
-    #     return mask
-    
     def convert_to_mask(self):
-        mask = render_mesh(self.vertices, self.faces)
-        mask = (~mask.astype(bool)).astype(int)
-        for object in self.objects[1:]:
-            object_mask = render_mesh(object.bbox.vertices, object.bbox.faces)
-            mask + object_mask
+        mask = np.zeros((grid_size, grid_size))
+        for object in self.objects:
+            object.write_to_mask(self.corner_pos, self.cell_size, mask)
         return mask
+    
+    def check_if_objects_inside(self):
+        wall_mask = np.zeros((grid_size, grid_size))
+        self.objects[0].write_to_mask(self.corner_pos, self.cell_size, wall_mask)
+        wall_mask = ~np.asarray(wall_mask, dtype = bool)
+        for object in self.objects[1:]:
+            object_mask = np.zeros((grid_size, grid_size))
+            object.write_to_mask(self.corner_pos, self.cell_size, object_mask)
+            disagreement = np.logical_and(wall_mask, object_mask)
+            if np.sum(disagreement) > 1000:
+                return False          
+        return True
+

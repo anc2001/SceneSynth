@@ -2,7 +2,7 @@ from main.common import utils
 from main.common.object_base import BBox, LineSeg
 from main.config import colors, direction_types_map, \
     num_angles, max_visibility_distance, \
-    object_types_map
+    object_types_map, grid_size, colors
 
 import numpy as np
 
@@ -156,9 +156,10 @@ class Furniture(SceneObject):
             self.init_line_segs()
         
         # Write bounding box to image 
-        for face in self.bbox.faces:
-            triangle = self.bbox.vertices[face]
-            utils.write_triangle_to_image(triangle, scene_corner_pos, scene_cell_size, image, self.color)
+        verts = self.bbox.vertices
+        faces = self.bbox.faces
+        img = utils.render_orthographic(verts, faces, scene_corner_pos, scene_cell_size)
+        image[np.asarray(img, dtype = bool)] = self.color
 
         # Write triangle directions to image 
         base_length = scene_cell_size * 8
@@ -172,17 +173,20 @@ class Furniture(SceneObject):
             a = segment_centroid + (segment_vector * base_length / 2)
             b = segment_centroid - (segment_vector * base_length / 2)
             c = segment_centroid + segment_normal * height
-            triangle = [a, b, c]
-            utils.write_triangle_to_image(triangle, scene_corner_pos, scene_cell_size, image, triangle_color)
+            verts = np.array([a, b, c])
+            faces = np.array([[0,1,2]])
+            img = utils.render_orthographic(verts, faces, scene_corner_pos, scene_cell_size)
+            image[np.asarray(img, dtype = bool)] = triangle_color
         
         if normalize:
             self.bbox = current_bbox
             self.line_segs = current_line_segs
     
-    def write_to_mask(self, scene, mask):
-        for face in self.bbox.faces:
-            triangle = self.bbox.vertices[face]
-            utils.write_triangle_to_mask(triangle, scene.corner_pos, scene.cell_size, mask)
+    def write_to_mask(self, scene_corner_pos, scene_cell_size, mask):
+        verts = self.bbox.vertices
+        faces = self.bbox.faces
+        img = utils.render_orthographic(verts, faces, scene_corner_pos, scene_cell_size)
+        mask += img
 
     def distance(self, query : SceneObject):
         """
@@ -190,7 +194,7 @@ class Furniture(SceneObject):
         Distance value of 0 means that the two objects intersect or overlap 
 
         returns distance, direction
-        """        
+        """
         min_distance = np.finfo(np.float64).max
         for query_line_seg in query.line_segs:
             for reference_line_seg in self.line_segs:
@@ -245,17 +249,9 @@ class Furniture(SceneObject):
             return self.line_segs[direction]
     
     def point_inside(self, point : np.ndarray):
-        """
-        point : np.ndarray of shape (3,)
-        """
         return self.bbox.point_inside(point)
     
     def point_to_side(self, point : np.ndarray):
-        """
-        point : np.ndarray of shape (3,)
-
-        returns local index of corresponding side 
-        """
         return self.bbox.point_to_side(point)
     
     def local_direction_to_world(self, angle):
@@ -304,6 +300,7 @@ class Wall(SceneObject):
         self.faces = scene.faces
         self.center = np.mean(self.vertices, axis = 0)
         self.extent = np.amax(self.vertices, axis = 0) - np.amin(self.vertices, axis = 0)
+        self.color = colors['inside']
 
     def vectorize(self):
         """
@@ -312,7 +309,12 @@ class Wall(SceneObject):
         return np.array([[self.id, False, self.extent[0], self.extent[2], 0, 0, 0]])
     
     def write_to_image(self, scene_corner_pos, scene_cell_size, image, normalize = False):
-        pass
+        img = utils.render_orthographic(self.vertices, self.faces, scene_corner_pos, scene_cell_size)
+        image[np.array(img, dtype = bool)] = self.color
+
+    def write_to_mask(self, scene_corner_pos, scene_cell_size, mask):
+        img  = utils.render_orthographic(self.vertices, self.faces, scene_corner_pos, scene_cell_size)
+        mask += img
 
     # Want to know all possible sides of the wall the object is attached to 
     def infer_relation(self, query, bins):

@@ -1,8 +1,7 @@
 from main.config import grid_size, num_angles, \
     max_allowed_sideways_reach, max_attach_distance, \
     direction_types, direction_types_map
-from main.common.utils import write_triangle_to_mask, \
-    normalize, raise_exception
+from main.common.utils import normalize, render_orthographic
 
 import numpy as np
 
@@ -43,17 +42,12 @@ def location_constraint(query_object, reference_object, direction, scene, attach
                 
             p3 = p1 + line_seg.normal * (forgiveness + 2 * padding)
             p4 = p2 + line_seg.normal * (forgiveness + 2 * padding)
-            triangles = np.array([
-                [p1, p2, p3],
-                [p2, p4, p3]
-            ])
-            for triangle in triangles:
-                write_triangle_to_mask(
-                    triangle, 
-                    scene.corner_pos, 
-                    scene.cell_size, 
-                    mask[possible_orientation]
-                )
+
+            verts = [p1, p2, p3, p4]
+            faces = [[0, 1, 2], [1, 3, 2]]
+            img = render_orthographic(verts, faces, scene.corner_pos, scene.cell_size)
+            mask[possible_orientation] += img
+    
     return mask
 
 def align(query_object, reference_object, direction):
@@ -88,17 +82,9 @@ def face(query_object, reference_object, scene):
                                
             p3 = p1 + line_seg.normal * grid_size * scene.cell_size
             p4 = p2 + line_seg.normal * grid_size * scene.cell_size
-            triangles = np.array([
-                [p1, p2, p3],
-                [p2, p4, p3]
-            ])
+            verts = [p1, p2, p3, p4]
+            faces = [[0, 1, 2], [1, 3, 2]]
+            img = render_orthographic(verts, faces, scene.corner_pos, scene.cell_size)
+            mask[valid_orientation] += img
 
-            for triangle in triangles:
-                write_triangle_to_mask(
-                    triangle, 
-                    scene.corner_pos, 
-                    scene.cell_size, 
-                    mask[valid_orientation]
-                )
-                
     return mask

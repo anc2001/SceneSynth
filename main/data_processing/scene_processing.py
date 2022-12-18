@@ -27,7 +27,7 @@ def execute_scene_filtering(filename):
         # query_objects = np.array(query_objects)[:500]
 
         for scene, query_object in zip(scenes, query_objects):
-            scene.add_object(query_object)
+            scene.objects = np.append(scene.objects, query_object)
         
         accepted_index_list, rejected_index_list = filter_scenes(scenes)
 

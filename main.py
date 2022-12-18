@@ -6,7 +6,7 @@ from main.data_processing import generate_most_restrictive_program, \
     get_scene_list, get_scene_query_list
 from main.common.language import ProgramTree
 
-from main.common.mesh_to_mask import temp
+from main.common.mesh_to_mask import render, get_triangles
 
 import matplotlib.image as img
 import matplotlib.pyplot as plt
@@ -67,52 +67,16 @@ def visualize_programs(pickle_name, in_order=True):
         fig = program.print_program(scene, query_object)
         fig.savefig(os.path.join(folder, f"{i}-{scene.id}.png"))
         plt.close(fig)
-
-def program_execution(index):
-    if not os.path.exists(image_filepath):
-        os.mkdir(image_filepath)
-    
-    room_folder = os.path.join(image_filepath, f"room_{index}")
-    if os.path.exists(room_folder):
-        clear_folder(room_folder)
-    else:
-        os.mkdir(room_folder)
-    
-    scene_list = get_scene_list()
-    scene = scene_list[index]
-
-    scene_image = scene.convert_to_image()
-    img.imsave(os.path.join(room_folder, "scene.png"), scene_image)
-    for i, (subscene, query_object) in enumerate(tqdm(scene.permute())):
-        program = generate_most_restrictive_program(subscene, query_object)
-        if verify_program_validity(program, subscene, query_object):
-            print(f"verified: {i}")
-        program.evaluate(subscene, query_object)
-        fig = program.print_program(subscene, query_object)
-        fig.savefig(os.path.join(room_folder, f"{i}.png"))
-        plt.close(fig)
-
-    # i = 9
-    # subscene, query_object = scene.permute()[i]
-    # program = generate_most_restrictive_program(subscene, query_object)
-    # if verify_program_validity(program, subscene, query_object):
-    #     print(f"verified: {i}")
-    # program.evaluate(subscene, query_object)
-    # fig = program.print_program(subscene, query_object)
-    # fig.savefig(os.path.join(room_folder, f"{i}.png"))
-    # plt.close(fig)
+        break
 
 def main(args):
     if args.mode == 'program_extraction':
         execute_program_extraction(args.name)
-    elif args.mode == 'program_execution':
-        program_execution(args.index)
     elif args.mode == 'filter_scenes':
         execute_scene_filtering(args.name)
     elif args.mode == 'print_scenes':
-        # temp()
         print_rooms(args.name)
-    elif args.mode == 'visualize_programs':
+    elif args.mode == 'print_programs':
         visualize_programs(args.name)
     elif args.mode == 'subsample':
         generate_subscenes(args.name)

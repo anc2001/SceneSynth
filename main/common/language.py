@@ -2,7 +2,6 @@ from main.common.scene import Scene
 from main.common.object import Furniture
 from main.executor import \
     ensure_placement_validity, solve_constraint
-from main.common.utils import raise_exception
 from main.common.tree_viz import visualize_program
 
 from main.config import \
@@ -111,7 +110,7 @@ class ProgramTree():
         
         def parse(tree_structure, index_tracker):
             if len(tree_structure) == 0:
-                raise_exception('tree')
+                raise Exception('tree structure incorrect')
             
             if tree_structure[0] == 'c':
                 constraint = constraints[
@@ -132,11 +131,11 @@ class ProgramTree():
                 node.right = right_node
                 return node, remaining_tree_structure, remaining_index_tracker
             else:
-                raise_exception('tree')
+                raise Exception('tree structure incorrect')
 
         root_node, remaining_structure, _ = parse(structure, index_tracker)
         if len(remaining_structure) > 0:
-            raise_exception('tree')
+            raise Exception('tree structure incorrect')
         
         self.root = root_node
         self.program_length = len(self.root)
@@ -175,11 +174,11 @@ class ProgramTree():
 
     def evaluate(self, scene : Scene, query_object : Furniture) -> np.ndarray:
         # returns a 3D mask that can be used for evaluation 
-        mask_3d = self.root.evaluate(scene, query_object)
+        mask = self.root.evaluate(scene, query_object)
         # final_mask = np.array(mask_3d)
         # ensure_placement_validity(final_mask, scene, query_object)
         # self.mask = final_mask
-        self.mask = mask_3d
+        self.mask = mask
 
         return self.mask
 

@@ -36,6 +36,7 @@ def ensure_placement_validity(centroid_mask, scene, query_object):
             j = x_and_y[1]
             translation = np.array([i + 0.5, 0, j + 0.5]) * scene.cell_size
             bbox.translate(translation)
+
             min_bound = np.amin(bbox.vertices, axis = 0)
             max_bound = np.amax(bbox.vertices, axis = 0)
             grid_min_bound, grid_max_bound = get_grid_bounds(min_bound, max_bound, scene)
