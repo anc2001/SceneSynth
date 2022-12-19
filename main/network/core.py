@@ -9,8 +9,6 @@ from main.config import \
 
 import torch
 from torch import nn
-from torchmetrics.functional.classification import \
-    multiclass_f1_score, multiclass_accuracy
 import numpy as np
 
 # Full implementation of the model end to end 
@@ -68,7 +66,6 @@ class ModelCore(nn.Module):
             src, src_padding_mask, 
             tgt, tgt_padding_mask,
             tgt_c, tgt_c_padding_mask,
-            objects_max_length
         ) = collated_vals 
 
         src_e = self.object_encoder(src)
@@ -175,7 +172,6 @@ class ModelCore(nn.Module):
             src, src_padding_mask, 
             tgt, tgt_padding_mask, 
             tgt_c, tgt_c_padding_mask,
-            objects_max_length
         ) = collated_vals 
 
         y_structure_pred = torch.flatten(structure_preds, start_dim = 0, end_dim = 1)
@@ -202,7 +198,6 @@ class ModelCore(nn.Module):
             src, src_padding_mask, 
             tgt, tgt_padding_mask, 
             tgt_c, tgt_c_padding_mask,
-            objects_max_length
         ) = collated_vals 
 
         total_tokens = 0

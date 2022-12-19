@@ -23,9 +23,6 @@ def execute_scene_filtering(filename):
         scenes = scenes_and_query_objects['scenes']
         query_objects = scenes_and_query_objects['query_objects']
 
-        # scenes = np.array(scenes)[:500]
-        # query_objects = np.array(query_objects)[:500]
-
         for scene, query_object in zip(scenes, query_objects):
             scene.objects = np.append(scene.objects, query_object)
         

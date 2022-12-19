@@ -133,8 +133,11 @@ class Scene():
     
     def convert_to_mask(self):
         mask = np.zeros((grid_size, grid_size))
-        for object in self.objects:
+        for i, object in enumerate(self.objects):
             object.write_to_mask(self.corner_pos, self.cell_size, mask)
+            if i == 0:
+                mask = ~np.asarray(mask, dtype = bool)
+                mask = np.asarray(mask, dtype = np.float32)
         return mask
     
     def check_if_objects_inside(self):

@@ -39,7 +39,7 @@ def draw_graph(graph, label_dict, reference_dict, figsize=(15, 15)):
     tr_figure = ax_tree.transData.transform
     # Transform from display to figure coordinates
     tr_axes = fig.transFigure.inverted().transform
-    icon_size = 0.2
+    icon_size = 0.1
     icon_center = icon_size / 2.0
 
     # Add the respective image to each node

@@ -159,7 +159,6 @@ def collate_fn(samples):
         torch.tensor(tgt_padding_mask).bool().to(device), 
         torch.tensor(tgt_c).float().to(device),
         torch.tensor(tgt_c_padding_mask).bool().to(device),
-        objects_max_length
     )
 
 class ProgramDataset(Dataset):

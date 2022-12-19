@@ -2,12 +2,14 @@ from main.common.language import ProgramTree
 from main.config import \
     max_allowed_sideways_reach, max_attach_distance, \
     direction_types_map, constraint_types_map, \
+    constraint_types, \
     data_filepath, grid_size
 from main.common.utils import angle_to_index
 from main.common.language import verify_program
 
 import numpy as np
 from tqdm import tqdm
+import os
 
 def generate_most_restrictive_program(scene, query_object):
     query_object_idx = len(scene.objects)
@@ -142,6 +144,19 @@ def verify_program_validity(program, scene, query_object):
             if mask[valid_orientation, i, j]:
                 return True
     return False
+
+def collect_program_statistics(program_data):
+    stats = {id : {} for id in range(5)}
+    for item in enumerate(tqdm(program_data)):
+        (scene, query_object) = item[0]
+        program_tokens = item[1]
+        constraints = program_tokens['constraints']
+        query_id = query_object.id
+        for constraint in constraints:
+            pass
+
+def prune_program(prior_stats, ):
+    pass
         
 def extract_programs(scenes, query_objects):
     xs = [] # (scene, query_object) pairs

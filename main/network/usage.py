@@ -1,8 +1,9 @@
 from main.common.utils import vectorize_scene, clear_folder
 from main.config import constraint_types, direction_types
-from main.network.stat_logger import StatLogger
+from main.executor import convert_mask_to_image
 
 import torch
+from torchmetrics.image.fid import FrechetInceptionDistance
 import numpy as np
 from tqdm import tqdm
 from main.common.language import ProgramTree, verify_program
@@ -85,6 +86,55 @@ def infer_program(model, scene, query_object, device, guarantee_program=False):
     }
 
     return tokens
+
+def calculate_fid(model, dataset, device):
+    indices = np.array(dataset.indices)
+    program_dataset = dataset.dataset
+    real_dist = np.array([])
+    fake_dist = np.array([])
+
+    print("Calculating FID")
+    for idx in tqdm(indices):
+        (scene, query_object), program_tokens = program_dataset[idx]
+        inferred_tokens = infer_program(model, scene, query_object, device)
+        scene_image = scene.convert_to_image()
+
+        inferred_program = ProgramTree()
+        inferred_program.from_tokens(inferred_tokens)
+        inferred_mask = inferred_program.evaluate(scene, query_object)
+        
+        inferred_image = convert_mask_to_image(inferred_mask, scene_image)
+
+        if len(fake_dist):
+            fake_dist = np.append(
+                fake_dist, 
+                np.expand_dims(inferred_image, dim = 0), 
+                axis = 0
+            )
+        else:
+            fake_dist = np.expand_dims(inferred_image, dim = 0)
+
+        gt_program = ProgramTree()
+        gt_program.from_tokens(program_tokens)
+        gt_mask = gt_program.evaluate(scene, query_object)
+
+        gt_image = convert_mask_to_image(gt_mask, scene_image)
+
+        if len(real_dist):
+            real_dist = np.append(
+                real_dist, 
+                np.expand_dims(gt_image, dim = 0), 
+                axis = 0
+            )
+        else:
+            real_dist = np.expand_dims(gt_image, dim = 0)
+    
+    fid = FrechetInceptionDistance(feature=64)
+    fid.update(real_dist, real=True)
+    fid.update(fake_dist, real=False)
+    score = fid.compute()
+    
+    return score.item()
 
 def iterate_through_data(
     model, dataloader, device, type, 
