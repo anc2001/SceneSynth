@@ -41,7 +41,7 @@ def print_rooms(pickle_name):
         scene_image = scene.convert_to_image()
         img.imsave(os.path.join(room_folder, f"{i}-{scene.id}.png"), scene_image)
 
-def visualize_programs(pickle_name, in_order=True):
+def print_programs(pickle_name, in_order=True):
     if not os.path.exists(image_filepath):
         os.mkdir(image_filepath)
     
@@ -67,7 +67,6 @@ def visualize_programs(pickle_name, in_order=True):
         fig = program.print_program(scene, query_object)
         fig.savefig(os.path.join(folder, f"{i}-{scene.id}.png"))
         plt.close(fig)
-        break
 
 def main(args):
     if args.mode == 'program_extraction':
@@ -77,7 +76,7 @@ def main(args):
     elif args.mode == 'print_scenes':
         print_rooms(args.name)
     elif args.mode == 'print_programs':
-        visualize_programs(args.name)
+        print_programs(args.name)
     elif args.mode == 'subsample':
         generate_subscenes(args.name)
     else:
